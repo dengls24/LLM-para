@@ -6,25 +6,25 @@ from matplotlib import ticker
 
 def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
     """
-    绘制单一硬件配置的Roofline模型图，使用折断坐标轴
+    Plot Roofline model for a single hardware configuration with broken axis
     
-    参数:
-    df - 包含计算密度数据的DataFrame
-    hardware_config - 单一硬件配置，包含名称、计算性能和内存带宽
-    output_path - 输出图像路径
+    Parameters:
+    df - DataFrame containing computational density data
+    hardware_config - Single hardware configuration including name, peak performance and memory bandwidth
+    output_path - Output image path
     """
-    # 创建带有折断坐标轴的图
+    # Create figure with broken axis
     fig = plt.figure(figsize=(12, 8))
     
-    # 提取硬件参数
+    # Extract hardware parameters
     name = hardware_config['name']
     peak_performance = hardware_config['peak_performance']  # FLOP/s
     memory_bandwidth = hardware_config['memory_bandwidth']  # Byte/s
     
-    # 计算转折点
+    # Calculate ridge point
     ridge_point = peak_performance / memory_bandwidth
     
-    # 设置x轴范围，确保覆盖所有数据点和转折点
+    # Set x-axis range to ensure coverage of all data points and ridge point
     valid_density = []
     for _, row in df.iterrows():
         if row['Density (Op/Byte)'] != '-':
@@ -37,48 +37,48 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
         min_density = ridge_point * 0.1
         max_density = ridge_point * 10
     
-    # 创建折断坐标轴
-    # 第一部分：从0到转折点
+    # Create broken axis
+    # First part: from 0 to ridge point
     ax1 = fig.add_subplot(121)
-    # 第二部分：从转折点到最大值
+    # Second part: from ridge point to maximum value
     ax2 = fig.add_subplot(122, sharey=ax1)
     
-    # 隐藏右边图的y轴标签
+    # Hide y-axis labels on the right subplot
     plt.setp(ax2.get_yticklabels(), visible=False)
     
-    # 设置x轴范围
-    ax1.set_xlim(0, ridge_point * 1.5)  # 第一部分显示到转折点
-    ax2.set_xlim(ridge_point * 1, max_density)  # 第二部分从转折点开始
+    # Set x-axis range
+    ax1.set_xlim(0, ridge_point * 1.5)  # First part shows up to ridge point
+    ax2.set_xlim(ridge_point * 1, max_density)  # Second part starts from ridge point
     
-    # 设置y轴范围
+    # Set y-axis range
     ax1.set_ylim(0, peak_performance * 1.2)
     ax2.set_ylim(0, peak_performance * 1.2)
     
-    # 创建x轴数据点
+    # Create x-axis data points
     x_range1 = np.linspace(0, ridge_point * 1.5, 500)
     x_range2 = np.linspace(ridge_point * 1, max_density, 500)
     
-    # 绘制内存带宽受限线和计算能力上限线
+    # Plot memory bandwidth bound line and compute capability ceiling line
     memory_bound1 = [min(x * memory_bandwidth, peak_performance) for x in x_range1]
     memory_bound2 = [min(x * memory_bandwidth, peak_performance) for x in x_range2]
     
-    # 绘制Roofline
+    # Plot Roofline
     ax1.plot(x_range1, memory_bound1, 'r-', linewidth=2)
     ax2.plot(x_range2, memory_bound2, 'r-', linewidth=2)
     
-    # 绘制计算能力上限线
+    # Plot compute capability ceiling line
     ax1.axhline(y=peak_performance, linestyle='--', color='g', linewidth=2)
     ax2.axhline(y=peak_performance, linestyle='--', color='g', linewidth=2)
     
-    # 标记转折点
+    # Mark ridge point
     # ax1.scatter([ridge_point], [peak_performance], marker='o', s=100, color='blue', zorder=10)
     # ax2.scatter([ridge_point], [peak_performance], marker='o', s=100, color='blue', zorder=10)
     
-    # 添加区域标签
+    # Add region labels
     ax1.text(ridge_point * 0.3, peak_performance * 0.5, "Memory\nBound", color='red', fontsize=12)
     ax2.text(max_density * 0.7, peak_performance * 0.9, "Compute\nBound", color='green', fontsize=12)
     
-    # 标记转折点坐标
+    # Mark ridge point coordinates
     ax1.annotate(f"I_max = {ridge_point:.2f}", 
                 xy=(ridge_point, 0), 
                 xytext=(0, -20),
@@ -86,7 +86,7 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
                 ha='center',
                 fontsize=10)
     
-    # 标记最大性能
+    # Mark peak performance
     ax1.annotate(f"π = {peak_performance:.2e}", 
                 xy=(0, peak_performance), 
                 xytext=(-40, 0),
@@ -94,21 +94,21 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
                 va='center',
                 fontsize=10)
     
-    # 标记内存带宽
+    # Mark memory bandwidth
     ax1.annotate(f"β = {memory_bandwidth:.2e}", 
                 xy=(0, 0), 
                 xytext=(20, 20),
                 textcoords='offset points',
                 fontsize=10)
     
-    # 定义操作类型和阶段的标记和颜色
+    # Define operation type and phase markers and colors
     operation_markers = {
-        'QKV': 's',  # 方形
-        'RoPE': 'p',  # 五角形
-        'Attention': 'o',  # 圆形
-        'Output': 'v',  # 三角形
-        'FFN-1': 'd',  # 菱形
-        'FFN-2': 'h'   # 六边形
+        'QKV': 's',  # Square
+        'RoPE': 'p',  # Pentagon
+        'Attention': 'o',  # Circle
+        'Output': 'v',  # Triangle
+        'FFN-1': 'd',  # Diamond
+        'FFN-2': 'h'   # Hexagon
     }
     
     operation_colors = {
@@ -121,18 +121,18 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
     }
     
     phase_markers = {
-        'Prefill': '^',  # 上三角
-        'Decode': 'o',   # 圆形
-        'Decode_Last': 's'  # 方形
+        'Prefill': '^',  # Up triangle
+        'Decode': 'o',   # Circle
+        'Decode_Last': 's'  # Square
     }
     
-    # 为图例创建空列表
+    # Create empty list for legend
     legend_elements = []
     
-    # 创建操作类型和阶段的映射
+    # Create mapping of operation types and phases
     operation_map = {}
     
-    # 绘制数据点
+    # Plot data points
     for _, row in df.iterrows():
         if row['Density (Op/Byte)'] == '-':
             continue
@@ -142,7 +142,7 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
         phase = row['Phase']
         flops = row['FLOPs']
         
-        # 确定操作类型
+        # Determine operation type
         op_type = None
         if any(x in operation for x in ['xW_Q', 'xW_K', 'xW_V', 'W_Q', 'W_K', 'W_V']):
             op_type = 'QKV'
@@ -159,19 +159,19 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
         else:
             op_type = 'Other'
         
-        # 获取标记和颜色
-        marker = phase_markers.get(phase, 'x')  # 根据阶段选择标记
-        color = operation_colors.get(op_type, 'gray')  # 根据操作类型选择颜色
+        # Get marker and color
+        marker = phase_markers.get(phase, 'x')  # Select marker based on phase
+        color = operation_colors.get(op_type, 'gray')  # Select color based on operation type
         
-        # 计算在roofline上的实际性能
+        # Calculate actual performance on roofline
         if density < ridge_point:
-            # 内存带宽受限
+            # Memory bandwidth bound
             attainable_perf = density * memory_bandwidth
         else:
-            # 计算能力受限
+            # Compute capability bound
             attainable_perf = peak_performance
         
-        # 选择正确的子图并确保点被绘制
+        # Select correct subplot and ensure points are plotted
         if density <= ridge_point * 1.5:
             ax = ax1
             ax.scatter(density, attainable_perf, marker=marker, s=80, 
@@ -181,7 +181,7 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
             ax.scatter(density, attainable_perf, marker=marker, s=80, 
                       color=color, edgecolors='black', alpha=0.7)
         
-        # 记录操作和阶段的组合，用于图例
+        # Record operation and phase combination for legend
         key = f"{op_type}_{phase}"
         if key not in operation_map:
             operation_map[key] = {
@@ -192,8 +192,8 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
                 'operation': operation
             }
     
-    # 添加折断标记
-    d = .015  # 折断线的大小
+    # Add break marks
+    d = .015  # Size of break lines
     kwargs = dict(transform=ax1.transAxes, color='k', clip_on=False)
     ax1.plot((1-d, 1+d), (-d, +d), **kwargs)
     ax1.plot((1-d, 1+d), (1-d, 1+d), **kwargs)
@@ -202,13 +202,13 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
     ax2.plot((-d, +d), (-d, +d), **kwargs)
     ax2.plot((-d, +d), (1-d, 1+d), **kwargs)
     
-    # 创建图例
-    # 1. 操作类型图例
+    # Create legends
+    # 1. Operation type legend
     op_legend = []
     for op_type, color in operation_colors.items():
         op_legend.append(mpatches.Patch(color=color, label=op_type))
     
-    # 2. 阶段图例
+    # 2. Phase legend
     phase_legend = []
     for phase, marker in phase_markers.items():
         if phase == 'Decode_Last':
@@ -218,7 +218,7 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
         phase_legend.append(plt.Line2D([0], [0], marker=marker, color='black', linestyle='None', 
                                       markersize=8, label=phase_display))
     
-    # 3. 具体操作图例
+    # 3. Specific operation legend
     op_phase_legend = []
     for key, info in operation_map.items():
         op_type = info['op_type']
@@ -236,49 +236,49 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
         op_phase_legend.append(plt.Line2D([0], [0], marker=marker, color=color, linestyle='None', 
                                          markersize=8, label=label))
     
-    # 设置图表属性
+    # Set chart properties
     ax1.set_xlabel('Operational Intensity (I) [FLOP/Byte]')
     ax2.set_xlabel('Operational Intensity (I) [FLOP/Byte]')
     ax1.set_ylabel('Attainable Performance (P) [FLOP/s]')
     fig.suptitle(f'Roofline Model - {name}', fontsize=16)
     
-    # 添加网格
+    # Add grid
     ax1.grid(True, linestyle='--', alpha=0.5)
     ax2.grid(True, linestyle='--', alpha=0.5)
     
-    # 添加图例，分组显示
-    # 1. 操作类型图例
+    # Add legends with grouped display
+    # 1. Operation type legend
     legend1 = ax1.legend(handles=op_legend, loc='upper left', title='Operation Types')
     ax1.add_artist(legend1)
     
-    # 2. 阶段图例
+    # 2. Phase legend
     legend2 = ax2.legend(handles=phase_legend, loc='upper left', title='Phases')
     ax2.add_artist(legend2)
     
-    # 在plot_roofline_model函数中，修改保存图表的部分
+    # Modified section for saving charts in plot_roofline_model function
     
-    # 修改前:
-    # 3. 创建单独的图例图
+    # Before modification:
+    # 3. Create separate legend figure
     fig_legend = plt.figure(figsize=(12, 3))
     fig_legend.legend(handles=op_phase_legend, loc='center', ncol=3, title='Operations by Phase')
     fig_legend.tight_layout()
     fig_legend.savefig(output_path.replace('.png', '_legend.png'))
     
-    # 保存主图表
+    # Save main chart
     plt.tight_layout()
     plt.savefig(output_path)
     plt.show()
     
-    # 修改后:
-    # 3. 创建单独的图例图
+    # After modification:
+    # 3. Create separate legend figure
     legend_path = output_path.replace('.png', '_legend.png')
     fig_legend = plt.figure(figsize=(12, 3))
     fig_legend.legend(handles=op_phase_legend, loc='center', ncol=3, title='Operations by Phase')
     fig_legend.tight_layout()
     fig_legend.savefig(legend_path)
-    plt.close(fig_legend)  # 关闭图例图
+    plt.close(fig_legend)  # Close legend figure
     
-    # 保存主图表
+    # Save main chart
     fig.tight_layout()
     fig.savefig(output_path)
     plt.show()
@@ -286,20 +286,20 @@ def plot_roofline_model(df, hardware_config, output_path="roofline_model.png"):
     print(f"\n✅ Roofline model saved to '{output_path}'")
     print(f"✅ Legend saved to '{legend_path}'")
 
-def analyze_from_csv(csv_path, hardware_config, output_path="llama-roofline_model.png"):
+def analyze_from_csv(csv_path, hardware_config, output_path="Mixtral-8x7B.png"):
     """
-    从CSV文件读取数据并分析
+    Read data from CSV file and analyze
     
-    参数:
-    csv_path - CSV文件路径
-    hardware_config - 硬件配置
-    output_path - 输出图像路径
+    Parameters:
+    csv_path - CSV file path
+    hardware_config - Hardware configuration
+    output_path - Output image path
     """
     try:
-        # 读取CSV文件
+        # Read CSV file
         df = pd.read_csv(csv_path)
         
-        # 绘制Roofline模型
+        # Plot Roofline model
         plot_roofline_model(df, hardware_config, output_path)
         
         return True
@@ -307,16 +307,63 @@ def analyze_from_csv(csv_path, hardware_config, output_path="llama-roofline_mode
         print(f"Error: {e}")
         return False
 
-# 示例使用
+# Example usage
 if __name__ == "__main__":
-    # 定义硬件配置
-    hardware_config = {
-        'name': 'NVIDIA A100',
-        'peak_performance': 19.5e12,  # FLOP/s
-        'memory_bandwidth': 1.555e12,  # Byte/s
+    # Define multiple hardware configurations
+    hardware_configs = {
+        'NVIDIA_A100': {
+            'name': 'NVIDIA A100',
+            'peak_performance': 19.5e12,  # FLOP/s (FP32)
+            'memory_bandwidth': 1.555e12,  # Byte/s (HBM2)
+        },
+        'NVIDIA_H100': {
+            'name': 'NVIDIA H100',
+            'peak_performance': 67e12,  # FLOP/s (FP32)
+            'memory_bandwidth': 3.35e12,  # Byte/s (HBM3)
+        },
+        'Smartphone_NPU': {
+            'name': 'Smartphone NPU (Snapdragon 8 Gen 2)',
+            'peak_performance': 4.35e12,  # FLOP/s (INT8)
+            'memory_bandwidth': 51.2e9,  # Byte/s (LPDDR5X)
+        },
+        'DRAM_PIM': {
+            'name': 'DRAM-PIM (H2LLM In-die NMP)',
+            'peak_performance': 0.8e12,  # FLOP/s (FP16)
+            'memory_bandwidth': 0.8e12,  # Byte/s (Near-memory computing)
+        },
+        'NAND_PIM': {
+            'name': 'NAND-PIM (Lincoln -w/o speculated decode)',
+            'peak_performance': 0.2e12,  # FLOP/s 
+            'memory_bandwidth': 0.2e12,  # Byte/s 
+        },
+        'Intel_Xeon': {
+            'name': 'Intel Xeon Platinum 8380',
+            'peak_performance': 2.8e12,  # FLOP/s (FP32, AVX-512)
+            'memory_bandwidth': 204.8e9,  # Byte/s (DDR4-3200)
+        },
+        'Apple_M2_Ultra': {
+            'name': 'Apple M2 Ultra',
+            'peak_performance': 27.2e12,  # FLOP/s (FP32)
+            'memory_bandwidth': 800e9,  # Byte/s (Unified Memory)
+        },
+        'AMD_MI250X': {
+            'name': 'AMD Instinct MI250X',
+            'peak_performance': 47.9e12,  # FLOP/s (FP32)
+            'memory_bandwidth': 3.28e12,  # Byte/s (HBM2e)
+        }
     }
     
-    # 使用示例
-    csv_path = "llama-true_density_transformer_analysis.csv"
+    # Select hardware configuration to use
+    selected_hardware = 'NVIDIA_A100'  # Change this to test different hardware
+    hardware_config = hardware_configs[selected_hardware]
+    
+    # Usage example
+    #csv_path = "llama-true_density_transformer_analysis.csv"
+    csv_path = "Mixtral-8x7B_density_transformer_analysis.csv"
     
     analyze_from_csv(csv_path, hardware_config)
+    
+    # Optional: Generate roofline models for all hardware configurations
+    # for hw_name, hw_config in hardware_configs.items():
+    #     output_path = f"roofline_{hw_name}.png"
+    #     analyze_from_csv(csv_path, hw_config, output_path)
