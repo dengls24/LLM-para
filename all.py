@@ -184,7 +184,10 @@ def compute_and_plot_transformer_analysis(
             "Input2 Bytes": B_weight,
             "Output Bytes": B_output,
             "Total Bytes": B_total,
-            "Density (Op/Byte)": density
+            "Density (Op/Byte)": density,
+            "Input Shape": input_shape,
+            "Weight Shape": weight_shape,
+            "Output Shape": output_shape
         })
 
     # Extract bit width settings from quantization config
@@ -211,8 +214,8 @@ def compute_and_plot_transformer_analysis(
         # In GQA, K and V parameter count and computation are reduced proportionally
         flops = 2 * b * seq * h * h * (kv_n / n)
         param_count = h * h * (kv_n / n)
-        add_row(phase, f"x{name}", "(b,s,h)", f"(h,h*{kv_n/n})", "(b,s,h)",
-                flops, param_count, (b, seq, h), (h, h * (kv_n / n)), (b, seq, h), a_bit, w_attn)
+        add_row(phase, f"x{name}", "(b,s,h)", f"(h,h*{kv_n/n})", f"(b,s,h*{kv_n/n})",
+                flops, param_count, (b, seq, h), (h, h * (kv_n / n)), (b, seq, h * (kv_n / n)), a_bit, w_attn)
     
     # RoPE position encoding computation
     if use_rope:
@@ -315,8 +318,8 @@ def compute_and_plot_transformer_analysis(
     for name in ['W_K', 'W_V']:
         flops = 2 * b * seq * h * h * (kv_n / n)
         param_count = h * h * (kv_n / n)
-        add_row(phase, f"x{name}", "(b,1,h)", f"(h,h*{kv_n/n})", "(b,1,h)",
-                flops, param_count, (b, seq, h), (h, h * (kv_n / n)), (b, seq, h), a_bit, w_attn)
+        add_row(phase, f"x{name}", "(b,1,h)", f"(h,h*{kv_n/n})", f"(b,1,h*{kv_n/n})",
+                flops, param_count, (b, seq, h), (h, h * (kv_n / n)), (b, seq, h * (kv_n / n)), a_bit, w_attn)
     
     # RoPE computation - Decode phase
     if use_rope:
@@ -409,8 +412,8 @@ def compute_and_plot_transformer_analysis(
     for name in ['W_K', 'W_V']:
         flops = 2 * b * seq * h * h * (kv_n / n)
         param_count = h * h * (kv_n / n)
-        add_row(phase, f"x{name}", "(b,1,h)", f"(h,h*{kv_n/n})", "(b,1,h)",
-                flops, param_count, (b, seq, h), (h, h * (kv_n / n)), (b, seq, h), a_bit, w_attn)
+        add_row(phase, f"x{name}", "(b,1,h)", f"(h,h*{kv_n/n})", f"(b,1,h*{kv_n/n})",
+                flops, param_count, (b, seq, h), (h, h * (kv_n / n)), (b, seq, h * (kv_n / n)), a_bit, w_attn)
     
     # RoPE computation - last position
     if use_rope:
@@ -611,39 +614,17 @@ def compute_and_plot_transformer_analysis(
 #     output_csv_path="bitnet_analysis.csv"
 # )
 
-# LLaMA-3 8B model example
-# compute_and_plot_transformer_analysis(
-#     hidden_size=4096,
-#     num_heads=32,
-#     seq_len=4096,
-#     batch_size=1,
-#     num_layers=32,
-#     intermediate_size=14336,
-#     num_key_value_heads=8,  # GQA configuration
-#     out_l=0,
-#     max_gen_len=4096,
-#     quant_config={
-#         "activation": 16,
-#         "kv_cache": 16,
-#         "weight_ffn": 16,
-#         "weight_attn": 16,
-#         "rope_bit": 16
-#     },
-#     use_gate_ffn=True,
-#     use_rope=True,
-#     rope_theta=500000.0,
-#     rope_scaling_factor=1.0,
-#     output_csv_path="llama3_8b_analysis.csv"
-# )
-
-# Mixtral-8x7B model analysis (currently running example)
+#LLaMA-3 8B model example
 compute_and_plot_transformer_analysis(
-    # Mixtral-8x7B configuration
     hidden_size=4096,
     num_heads=32,
     seq_len=4096,
     batch_size=1,
     num_layers=32,
+    intermediate_size=14336,
+    num_key_value_heads=8,  # GQA configuration
+    out_l=0,
+    max_gen_len=4096,
     quant_config={
         "activation": 16,
         "kv_cache": 16,
@@ -651,15 +632,37 @@ compute_and_plot_transformer_analysis(
         "weight_attn": 16,
         "rope_bit": 16
     },
-    intermediate_size=14336,
-    num_key_value_heads=8,  # GQA configuration
-    num_experts_per_tok=2,   # Set to None to disable MoE
-    num_local_experts=8,
-    out_l=0,
-    max_gen_len=4096,
-    use_gate_ffn=True,  # Use SwiGLU activation
-    use_rope=True,      # Use RoPE position encoding
+    use_gate_ffn=True,
+    use_rope=True,
     rope_theta=500000.0,
     rope_scaling_factor=1.0,
-    output_csv_path="Mixtral-8x7B_density_transformer_analysis.csv"
+    output_csv_path="llama3_8b_analysis.csv"
 )
+
+# Mixtral-8x7B model analysis (currently running example)
+# compute_and_plot_transformer_analysis(
+#     # Mixtral-8x7B configuration
+#     hidden_size=4096,
+#     num_heads=32,
+#     seq_len=4096,
+#     batch_size=1,
+#     num_layers=32,
+#     quant_config={
+#         "activation": 16,
+#         "kv_cache": 16,
+#         "weight_ffn": 16,
+#         "weight_attn": 16,
+#         "rope_bit": 16
+#     },
+#     intermediate_size=14336,
+#     num_key_value_heads=8,  # GQA configuration
+#     num_experts_per_tok=2,   # Set to None to disable MoE
+#     num_local_experts=8,
+#     out_l=0,
+#     max_gen_len=4096,
+#     use_gate_ffn=True,  # Use SwiGLU activation
+#     use_rope=True,      # Use RoPE position encoding
+#     rope_theta=500000.0,
+#     rope_scaling_factor=1.0,
+#     output_csv_path="Mixtral-8x7B_density_transformer_analysis.csv"
+# )
