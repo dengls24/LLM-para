@@ -19,6 +19,24 @@ A comprehensive **web-based** toolchain for analyzing **computation complexity**
 
 > **Try it now →** https://llm-para.onrender.com
 
+---
+
+## 📸 Screenshots
+
+| Home & Configuration | Operations Table |
+|:---:|:---:|
+| ![Home](docs/screenshot_home.png) | ![Table](docs/screenshot_table.png) |
+
+| Roofline Model (H100) | Analysis Charts |
+|:---:|:---:|
+| ![Roofline](docs/screenshot_roofline.png) | ![Charts](docs/screenshot_charts.png) |
+
+| Memory Analysis |
+|:---:|
+| ![Memory](docs/screenshot_memory.png) |
+
+---
+
 ## 🚀 Features
 
 ### 📊 Comprehensive Operator Coverage

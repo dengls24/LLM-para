@@ -11,9 +11,9 @@ env/
 venv/
 .venv/
 
-# Output files
+# Output files (but keep docs/screenshots)
 *.csv
-*.png
+!docs/*.png
 *.jpg
 
 # IDE
