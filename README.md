@@ -1,10 +1,23 @@
 # LLM-Para: Transformer Computation & Roofline Analyzer
 
+<div align="center">
+
+### 🌐 [**llm-para.onrender.com**](https://llm-para.onrender.com) — Live Demo, No Install Needed
+
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-llm--para.onrender.com-5b7eff?style=for-the-badge)](https://llm-para.onrender.com)
+
+</div>
+
+---
+
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Flask](https://img.shields.io/badge/backend-Flask-lightgrey.svg)](https://flask.palletsprojects.com/)
+[![Web](https://img.shields.io/badge/web-Chart.js-ff6384.svg)](https://www.chartjs.org/)
 
-A comprehensive web-based toolchain for analyzing **computation complexity**, **memory access patterns**, and **hardware performance bottlenecks** in large Transformer-based language models. Features an interactive Roofline model visualization and detailed per-operator breakdown for the complete inference pipeline.
+A comprehensive **web-based** toolchain for analyzing **computation complexity**, **memory access patterns**, and **hardware performance bottlenecks** in large Transformer-based language models. Features an interactive Roofline model visualization and detailed per-operator breakdown for the complete inference pipeline.
+
+> **Try it now →** https://llm-para.onrender.com
 
 ## 🚀 Features
 
