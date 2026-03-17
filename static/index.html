@@ -284,6 +284,10 @@
         <button class="tab" data-tab="roofline">📈 Roofline Model</button>
         <button class="tab" data-tab="charts">📉 Analysis Charts</button>
         <button class="tab" data-tab="memory">💾 Memory Analysis</button>
+        <button class="tab" data-tab="energy">⚡ Energy &amp; Power</button>
+        <button class="tab" data-tab="tco">💰 TCO &amp; CO₂e</button>
+        <button class="tab" data-tab="hetero">🔬 Hetero Architecture</button>
+        <button class="tab" data-tab="dse">🎯 DSE Explorer</button>
       </div>
 
       <!-- Tab: Operations Table -->
@@ -385,6 +389,184 @@
           <div class="mem-card full-width">
             <h4>Per-Operator Memory Breakdown</h4>
             <div class="chart-container"><canvas id="opMemChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Energy & Power Roofline -->
+      <div class="tab-panel" id="panel-energy">
+        <div class="roofline-toolbar">
+          <div class="roofline-hw-select">
+            <label>Hardware: <select id="energyHW" class="select-sm"></select></label>
+          </div>
+          <div class="roofline-hw-select">
+            <label>Metric:
+              <select id="energyMetric" class="select-sm">
+                <option value="efficiency">Energy Efficiency (GFLOPS/W)</option>
+                <option value="power">Active Power (W)</option>
+                <option value="energy">Total Energy (mJ)</option>
+              </select>
+            </label>
+          </div>
+          <button class="btn btn-sm btn-primary" id="runEnergyBtn">Compute</button>
+        </div>
+        <div class="charts-grid-2">
+          <div class="chart-card" style="grid-column:1/-1">
+            <div class="chart-title">Energy Efficiency Roofline (GFLOPS/W vs Arithmetic Intensity)</div>
+            <div class="chart-container-large"><canvas id="energyRooflineChart"></canvas></div>
+            <div class="info-note">Based on Ghane et al. ISPASS 2018 — Power fraction model. Ridge point separates memory-bound (left) from compute-bound (right).</div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Per-Operator Energy Breakdown</div>
+            <div class="chart-container"><canvas id="opEnergyChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Power Utilization (Compute vs Memory)</div>
+            <div class="chart-container"><canvas id="powerUtilChart"></canvas></div>
+          </div>
+        </div>
+        <div class="stats-row" id="energyStats">
+          <div class="rstat"><span>Peak Efficiency</span><span id="es-peak-eff">—</span></div>
+          <div class="rstat"><span>Avg Efficiency</span><span id="es-avg-eff">—</span></div>
+          <div class="rstat"><span>TDP</span><span id="es-tdp">—</span></div>
+          <div class="rstat"><span>Total Energy</span><span id="es-total-energy">—</span></div>
+          <div class="rstat"><span>Memory-Bound Ops</span><span id="es-mem-bound">—</span></div>
+          <div class="rstat"><span>Compute-Bound Ops</span><span id="es-cmp-bound">—</span></div>
+        </div>
+      </div>
+
+      <!-- Tab: TCO & CO2e -->
+      <div class="tab-panel" id="panel-tco">
+        <div class="tco-controls">
+          <div class="tco-params">
+            <label>Hardware: <select id="tcoHW" class="select-sm"></select></label>
+            <label>Lifetime (years): <input type="number" id="tcoLifetime" value="3" min="1" max="10" class="num-sm"/></label>
+            <label>Utilization (%): <input type="number" id="tcoUtil" value="50" min="1" max="100" class="num-sm"/></label>
+            <label>Electricity ($/kWh): <input type="number" id="tcoElec" value="0.10" min="0.01" step="0.01" class="num-sm"/></label>
+            <label>PUE: <input type="number" id="tcoPUE" value="1.3" min="1.0" max="2.0" step="0.05" class="num-sm"/></label>
+            <label>Grid Region: <select id="tcoRegion" class="select-sm"></select></label>
+            <button class="btn btn-sm btn-primary" id="runTCOBtn">Compute TCO</button>
+          </div>
+        </div>
+        <div class="charts-grid-2">
+          <div class="chart-card">
+            <div class="chart-title">TCO Breakdown (Hardware vs Energy)</div>
+            <div class="chart-container"><canvas id="tcoBreakdownChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Carbon Footprint (Operational vs Embodied)</div>
+            <div class="chart-container"><canvas id="co2Chart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">TCO Comparison Across Hardware</div>
+            <div class="chart-container"><canvas id="tcoHWChart"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Energy Efficiency vs Cost ($/GFLOPS)</div>
+            <div class="chart-container"><canvas id="effCostChart"></canvas></div>
+          </div>
+        </div>
+        <div class="stats-row" id="tcoStats">
+          <div class="rstat"><span>Hardware Cost</span><span id="ts-hw-cost">—</span></div>
+          <div class="rstat"><span>Energy Cost (3yr)</span><span id="ts-e-cost">—</span></div>
+          <div class="rstat"><span>Total TCO</span><span id="ts-total-tco">—</span></div>
+          <div class="rstat"><span>TCO / EFLOP</span><span id="ts-tco-eflop">—</span></div>
+          <div class="rstat"><span>CO₂e (Operational)</span><span id="ts-co2-op">—</span></div>
+          <div class="rstat"><span>CO₂e (Embodied)</span><span id="ts-co2-emb">—</span></div>
+          <div class="rstat"><span>Electricity (kWh)</span><span id="ts-kwh">—</span></div>
+          <div class="rstat"><span>GFLOPS/$</span><span id="ts-gflops-dollar">—</span></div>
+        </div>
+      </div>
+
+      <!-- Tab: Heterogeneous Architecture -->
+      <div class="tab-panel" id="panel-hetero">
+        <div class="roofline-toolbar">
+          <div class="roofline-hw-select">
+            <label>Heterogeneous HW: <select id="heteroHW" class="select-sm"></select></label>
+          </div>
+          <button class="btn btn-sm btn-primary" id="runHeteroBtn">Analyze Placement</button>
+        </div>
+        <div id="heteroEmpty" class="info-note" style="margin:20px 0">
+          Select a heterogeneous architecture (Cambricon-LLM, Flash-LLM, NAND-PIM) and click Analyze.
+        </div>
+        <div id="heteroResults" class="hidden">
+          <div class="stats-row" id="heteroStats">
+            <div class="rstat"><span>Decode Bottleneck</span><span id="hs-bottleneck">—</span></div>
+            <div class="rstat"><span>Tokens/s (Decode)</span><span id="hs-tps">—</span></div>
+            <div class="rstat"><span>TTFT (Prefill)</span><span id="hs-ttft">—</span></div>
+            <div class="rstat"><span>SRAM Utilization</span><span id="hs-sram-util">—</span></div>
+            <div class="rstat"><span>DRAM Utilization</span><span id="hs-dram-util">—</span></div>
+            <div class="rstat"><span>Flash Spills</span><span id="hs-flash-spills">—</span></div>
+          </div>
+          <div class="charts-grid-2">
+            <div class="chart-card">
+              <div class="chart-title">Data Placement Across Memory Tiers</div>
+              <div class="chart-container"><canvas id="heteroPlacementChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Per-Tier Decode Throughput (Tokens/s)</div>
+              <div class="chart-container"><canvas id="heteroThroughputChart"></canvas></div>
+            </div>
+            <div class="chart-card" style="grid-column:1/-1">
+              <div class="chart-title">Per-Operator Effective Bandwidth vs Ideal (GB/s)</div>
+              <div class="chart-container-large"><canvas id="heteroOpsChart"></canvas></div>
+            </div>
+          </div>
+          <div class="hetero-placement-table">
+            <h4>Memory Tier Placement Summary</h4>
+            <table class="data-table" id="heteroPlacementTable">
+              <thead><tr><th>Tier</th><th>Data Type</th><th>Size (GB)</th><th>Bandwidth (TB/s)</th><th>Energy (pJ/B)</th></tr></thead>
+              <tbody id="heteroPlacementBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: DSE Explorer -->
+      <div class="tab-panel" id="panel-dse">
+        <div class="dse-controls">
+          <div class="dse-preset-row">
+            <label>DSE Preset: <select id="dsePreset" class="select-sm" style="width:220px"></select></label>
+            <label>CO₂ Region: <select id="dseRegion" class="select-sm"></select></label>
+            <label>Max Points: <input type="number" id="dseMaxPoints" value="300" min="27" max="1000" class="num-sm"/></label>
+            <button class="btn btn-sm btn-primary" id="runDSEBtn">🎯 Run DSE</button>
+          </div>
+          <div class="dse-params-grid" id="dseParamsGrid">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+        <div id="dseEmpty" class="info-note" style="margin:20px 0">
+          Select a preset and click "Run DSE" to sweep hardware design parameters and find Pareto-optimal configurations.
+        </div>
+        <div id="dseResults" class="hidden">
+          <div class="stats-row" id="dseStats">
+            <div class="rstat"><span>Total Points</span><span id="ds-total">—</span></div>
+            <div class="rstat"><span>Memory-Fit %</span><span id="ds-fit-pct">—</span></div>
+            <div class="rstat"><span>Pareto (Perf/Cost)</span><span id="ds-pareto-pc">—</span></div>
+            <div class="rstat"><span>Best Performance</span><span id="ds-best-perf">—</span></div>
+            <div class="rstat"><span>Best Energy Eff.</span><span id="ds-best-eff">—</span></div>
+            <div class="rstat"><span>Best TCO/EFLOP</span><span id="ds-best-tco">—</span></div>
+          </div>
+          <div class="charts-grid-2">
+            <div class="chart-card" style="grid-column:1/-1">
+              <div class="chart-title">Design Space: Performance vs TCO (Pareto Frontier highlighted)</div>
+              <div class="chart-container-large"><canvas id="dseParetoChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Performance vs Energy Efficiency Pareto</div>
+              <div class="chart-container"><canvas id="dseParetoEnergyChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Bandwidth Sensitivity Analysis</div>
+              <div class="chart-container"><canvas id="dseSensitivityChart"></canvas></div>
+            </div>
+          </div>
+          <div class="dse-table-wrap">
+            <h4>Top Pareto-Optimal Configurations (Performance vs Cost)</h4>
+            <table class="data-table" id="dseParetoTable">
+              <thead><tr><th>Name</th><th>Peak (TFLOPS)</th><th>BW (GB/s)</th><th>Cap (GB)</th><th>TDP (W)</th><th>Cost ($)</th><th>Attain (TFLOPS)</th><th>Energy Eff.</th><th>TCO/EFLOP</th><th>CO₂/EFLOP</th><th>Fits?</th></tr></thead>
+              <tbody id="dseParetoBody"></tbody>
+            </table>
           </div>
         </div>
       </div>

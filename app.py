@@ -11,6 +11,9 @@ from flask_cors import CORS
 
 from analyzer import LLMAnalyzer
 from configs import MODEL_CONFIGS, HARDWARE_CONFIGS, CATEGORY_COLORS, PHASE_SHAPES
+from metrics import run_full_metrics, CARBON_INTENSITY_GRID
+from hetero import HeteroAnalyzer
+from dse import DSEEngine, DSE_PRESETS
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
@@ -201,27 +204,164 @@ def export_json():
 
 @app.route('/api/compare', methods=['POST'])
 def compare():
-    """
-    Compare multiple model configurations.
-    Accepts list of configs, returns summaries for all.
-    """
     try:
         body = request.get_json()
         configs = body.get('configs', [])
         if not configs:
             return jsonify({'error': 'No configs to compare'}), 400
-
         comparisons = []
         for cfg in configs:
             analyzer = LLMAnalyzer(cfg)
             results = analyzer.analyze()
             summary = analyzer.get_summary(results)
-            comparisons.append({
-                'name': cfg.get('name', 'Custom'),
-                'summary': summary,
-            })
-
+            comparisons.append({'name': cfg.get('name', 'Custom'), 'summary': summary})
         return jsonify({'success': True, 'comparisons': comparisons})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ─── API: Extended Metrics (Energy / TCO / CO2e / Memory) ────────────────────
+
+@app.route('/api/metrics', methods=['POST'])
+def extended_metrics():
+    """
+    Run full extended metrics analysis: Energy Roofline, TCO, CO2e, Memory.
+    Body: { config, results, summary, hardware_key, tco_params, co2_region }
+    """
+    try:
+        body     = request.get_json()
+        cfg      = body.get('config', {})
+        results  = body.get('results', [])
+        summary  = body.get('summary', {})
+        hw_key   = body.get('hardware_key', '')
+        tco_p    = body.get('tco_params', {})
+        region   = body.get('co2_region', 'Global_Average')
+
+        if not hw_key or hw_key not in HARDWARE_CONFIGS:
+            return jsonify({'error': f'Unknown hardware: {hw_key}'}), 400
+        if not results:
+            # Re-analyze if results not provided
+            analyzer = LLMAnalyzer(cfg)
+            results  = analyzer.analyze()
+            summary  = analyzer.get_summary(results)
+
+        hw      = HARDWARE_CONFIGS[hw_key]
+        metrics = run_full_metrics(results, summary, hw, cfg, tco_p, region)
+
+        return jsonify({'success': True, 'metrics': metrics})
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/metrics/regions', methods=['GET'])
+def get_carbon_regions():
+    """Return available carbon intensity grid regions."""
+    regions = [{'key': k, 'gco2_kwh': v} for k, v in CARBON_INTENSITY_GRID.items()]
+    return jsonify({'regions': regions})
+
+
+# ─── API: Heterogeneous Architecture Analysis ─────────────────────────────────
+
+@app.route('/api/hetero', methods=['POST'])
+def hetero_analysis():
+    """
+    Analyze LLM inference on a heterogeneous memory architecture.
+    Body: { config, hardware_key }
+    Only valid for hardware with is_heterogeneous=True.
+    """
+    try:
+        body   = request.get_json()
+        cfg    = body.get('config', {})
+        hw_key = body.get('hardware_key', '')
+
+        if not hw_key or hw_key not in HARDWARE_CONFIGS:
+            return jsonify({'error': f'Unknown hardware: {hw_key}'}), 400
+
+        hw = HARDWARE_CONFIGS[hw_key]
+        if not hw.get('is_heterogeneous'):
+            return jsonify({'error': f'Hardware "{hw_key}" is not heterogeneous. '
+                            'Select Cambricon-LLM, Flash-LLM, or NAND-PIM.'}), 400
+
+        analyzer = HeteroAnalyzer(cfg, hw)
+        result   = analyzer.run_full_analysis()
+
+        return jsonify({'success': True, 'hetero': result})
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/hetero/hardware', methods=['GET'])
+def get_hetero_hardware():
+    """Return only heterogeneous hardware options."""
+    hw_list = [
+        {'key': k, 'name': v['name'], 'category': v['category'],
+         'tiers': list(v['memory_tiers'].keys())}
+        for k, v in HARDWARE_CONFIGS.items()
+        if v.get('is_heterogeneous')
+    ]
+    return jsonify({'hardware': hw_list})
+
+
+# ─── API: Design Space Exploration ───────────────────────────────────────────
+
+@app.route('/api/dse/presets', methods=['GET'])
+def get_dse_presets():
+    """Return available DSE parameter presets."""
+    return jsonify({'presets': list(DSE_PRESETS.keys()),
+                    'preset_params': DSE_PRESETS})
+
+
+@app.route('/api/dse/run', methods=['POST'])
+def run_dse():
+    """
+    Run Design Space Exploration.
+    Body: { config, dse_params, tco_params, co2_region, max_points }
+    """
+    try:
+        body      = request.get_json()
+        cfg       = body.get('config', {})
+        dse_p     = body.get('dse_params', DSE_PRESETS['Quick Scan (3×3 grid)'])
+        tco_p     = body.get('tco_params', {})
+        region    = body.get('co2_region', 'Global_Average')
+        max_pts   = body.get('max_points', 300)
+
+        if not cfg:
+            return jsonify({'error': 'No model config provided'}), 400
+
+        engine = DSEEngine(cfg)
+        result = engine.run(dse_p, tco_p, region, max_pts)
+
+        return jsonify({'success': True, 'dse': result})
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@app.route('/api/dse/sensitivity', methods=['POST'])
+def run_sensitivity():
+    """
+    Sensitivity analysis: vary one hardware parameter.
+    Body: { config, base_hardware_key, param, multipliers, tco_params, co2_region }
+    """
+    try:
+        body       = request.get_json()
+        cfg        = body.get('config', {})
+        hw_key     = body.get('base_hardware_key', 'NVIDIA H100 SXM')
+        param      = body.get('param', 'memory_bandwidth')
+        multipliers = body.get('multipliers', [0.25, 0.5, 1.0, 2.0, 4.0, 8.0])
+        tco_p      = body.get('tco_params', {})
+        region     = body.get('co2_region', 'Global_Average')
+
+        if hw_key not in HARDWARE_CONFIGS:
+            return jsonify({'error': f'Unknown hardware: {hw_key}'}), 400
+
+        base_hw = HARDWARE_CONFIGS[hw_key]
+        engine  = DSEEngine(cfg)
+        result  = engine.sensitivity_analysis(base_hw, param, multipliers, tco_p, region)
+
+        return jsonify({'success': True, 'sensitivity': result, 'param': param})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

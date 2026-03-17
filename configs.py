@@ -202,167 +202,278 @@ MODEL_CONFIGS = {
 }
 
 # ─── Hardware Presets ─────────────────────────────────────────────────────────
+# Each entry includes extended fields for energy/TCO/DSE analysis:
+#   tdp_w              : Thermal design power (Watts) — full chip TDP
+#   cost_usd           : System/card purchase price (USD)
+#   tech_node_nm       : Process node (nm)
+#   memory_capacity    : Total usable capacity (Bytes)
+#   memory_tiers       : For heterogeneous architectures
+#   carbon_mfg_kgco2e  : Embodied carbon from manufacturing (kg CO2e), estimate
+#   compute_power_frac : Fraction of TDP from compute logic (rest = memory/IO)
 
 HARDWARE_CONFIGS = {
     # ── NVIDIA GPUs ──────────────────────────────────────────────────────────
     "NVIDIA H100 SXM": {
         "name": "NVIDIA H100 SXM", "category": "GPU",
-        "peak_performance": 67e12,      # FP32 TFLOP/s
-        "peak_performance_fp16": 989e12, # FP16 TFLOP/s (with sparsity)
-        "memory_bandwidth": 3.35e12,    # HBM3 TB/s
-        "memory_capacity": 80e9,        # 80 GB HBM3
+        "peak_performance": 67e12,
+        "peak_performance_fp16": 989e12,
+        "memory_bandwidth": 3.35e12,
+        "memory_capacity": 80e9,
+        "tdp_w": 700,
+        "cost_usd": 30000,
+        "tech_node_nm": 4,
+        "carbon_mfg_kgco2e": 150,
+        "compute_power_frac": 0.55,
     },
     "NVIDIA H100 PCIe": {
         "name": "NVIDIA H100 PCIe", "category": "GPU",
-        "peak_performance": 51e12,
-        "peak_performance_fp16": 756e12,
-        "memory_bandwidth": 2.0e12,
-        "memory_capacity": 80e9,
+        "peak_performance": 51e12, "peak_performance_fp16": 756e12,
+        "memory_bandwidth": 2.0e12, "memory_capacity": 80e9,
+        "tdp_w": 350, "cost_usd": 25000, "tech_node_nm": 4,
+        "carbon_mfg_kgco2e": 130, "compute_power_frac": 0.55,
     },
     "NVIDIA A100 SXM (80GB)": {
         "name": "NVIDIA A100 SXM (80GB)", "category": "GPU",
-        "peak_performance": 19.5e12,
-        "peak_performance_fp16": 312e12,
-        "memory_bandwidth": 2.0e12,     # HBM2e
-        "memory_capacity": 80e9,
+        "peak_performance": 19.5e12, "peak_performance_fp16": 312e12,
+        "memory_bandwidth": 2.0e12, "memory_capacity": 80e9,
+        "tdp_w": 400, "cost_usd": 15000, "tech_node_nm": 7,
+        "carbon_mfg_kgco2e": 120, "compute_power_frac": 0.5,
     },
     "NVIDIA A100 SXM (40GB)": {
         "name": "NVIDIA A100 SXM (40GB)", "category": "GPU",
-        "peak_performance": 19.5e12,
-        "peak_performance_fp16": 312e12,
-        "memory_bandwidth": 1.555e12,
-        "memory_capacity": 40e9,
+        "peak_performance": 19.5e12, "peak_performance_fp16": 312e12,
+        "memory_bandwidth": 1.555e12, "memory_capacity": 40e9,
+        "tdp_w": 400, "cost_usd": 11000, "tech_node_nm": 7,
+        "carbon_mfg_kgco2e": 100, "compute_power_frac": 0.5,
     },
     "NVIDIA A10": {
         "name": "NVIDIA A10", "category": "GPU",
-        "peak_performance": 31.2e12,
-        "peak_performance_fp16": 125e12,
-        "memory_bandwidth": 600e9,
-        "memory_capacity": 24e9,
+        "peak_performance": 31.2e12, "peak_performance_fp16": 125e12,
+        "memory_bandwidth": 600e9, "memory_capacity": 24e9,
+        "tdp_w": 150, "cost_usd": 4500, "tech_node_nm": 8,
+        "carbon_mfg_kgco2e": 60, "compute_power_frac": 0.55,
     },
     "NVIDIA RTX 4090": {
         "name": "NVIDIA RTX 4090", "category": "GPU",
-        "peak_performance": 82.6e12,
-        "peak_performance_fp16": 165.2e12,
-        "memory_bandwidth": 1008e9,     # GDDR6X
-        "memory_capacity": 24e9,
+        "peak_performance": 82.6e12, "peak_performance_fp16": 165.2e12,
+        "memory_bandwidth": 1008e9, "memory_capacity": 24e9,
+        "tdp_w": 450, "cost_usd": 1600, "tech_node_nm": 5,
+        "carbon_mfg_kgco2e": 80, "compute_power_frac": 0.6,
     },
     "NVIDIA RTX 4080": {
         "name": "NVIDIA RTX 4080", "category": "GPU",
-        "peak_performance": 48.7e12,
-        "peak_performance_fp16": 97.4e12,
-        "memory_bandwidth": 717e9,
-        "memory_capacity": 16e9,
+        "peak_performance": 48.7e12, "peak_performance_fp16": 97.4e12,
+        "memory_bandwidth": 717e9, "memory_capacity": 16e9,
+        "tdp_w": 320, "cost_usd": 1200, "tech_node_nm": 5,
+        "carbon_mfg_kgco2e": 65, "compute_power_frac": 0.6,
     },
 
     # ── AMD GPUs ─────────────────────────────────────────────────────────────
     "AMD MI300X": {
         "name": "AMD MI300X", "category": "GPU",
-        "peak_performance": 163.4e12,
-        "peak_performance_fp16": 1307e12,
-        "memory_bandwidth": 5.3e12,     # HBM3
-        "memory_capacity": 192e9,
+        "peak_performance": 163.4e12, "peak_performance_fp16": 1307e12,
+        "memory_bandwidth": 5.3e12, "memory_capacity": 192e9,
+        "tdp_w": 750, "cost_usd": 20000, "tech_node_nm": 5,
+        "carbon_mfg_kgco2e": 160, "compute_power_frac": 0.5,
     },
     "AMD MI250X": {
         "name": "AMD MI250X", "category": "GPU",
-        "peak_performance": 47.9e12,
-        "peak_performance_fp16": 383e12,
-        "memory_bandwidth": 3.28e12,
-        "memory_capacity": 128e9,
+        "peak_performance": 47.9e12, "peak_performance_fp16": 383e12,
+        "memory_bandwidth": 3.28e12, "memory_capacity": 128e9,
+        "tdp_w": 560, "cost_usd": 14000, "tech_node_nm": 6,
+        "carbon_mfg_kgco2e": 140, "compute_power_frac": 0.5,
     },
 
     # ── Apple Silicon ─────────────────────────────────────────────────────────
     "Apple M3 Ultra": {
         "name": "Apple M3 Ultra", "category": "CPU/NPU",
-        "peak_performance": 54.4e12,
-        "peak_performance_fp16": 54.4e12,
-        "memory_bandwidth": 800e9,
-        "memory_capacity": 192e9,
+        "peak_performance": 54.4e12, "peak_performance_fp16": 54.4e12,
+        "memory_bandwidth": 800e9, "memory_capacity": 192e9,
+        "tdp_w": 65, "cost_usd": 5000, "tech_node_nm": 3,
+        "carbon_mfg_kgco2e": 100, "compute_power_frac": 0.35,
     },
     "Apple M2 Ultra": {
         "name": "Apple M2 Ultra", "category": "CPU/NPU",
-        "peak_performance": 27.2e12,
-        "peak_performance_fp16": 27.2e12,
-        "memory_bandwidth": 800e9,
-        "memory_capacity": 192e9,
+        "peak_performance": 27.2e12, "peak_performance_fp16": 27.2e12,
+        "memory_bandwidth": 800e9, "memory_capacity": 192e9,
+        "tdp_w": 60, "cost_usd": 3000, "tech_node_nm": 5,
+        "carbon_mfg_kgco2e": 90, "compute_power_frac": 0.35,
     },
     "Apple M2 Max": {
         "name": "Apple M2 Max", "category": "CPU/NPU",
-        "peak_performance": 13.6e12,
-        "peak_performance_fp16": 13.6e12,
-        "memory_bandwidth": 400e9,
-        "memory_capacity": 96e9,
+        "peak_performance": 13.6e12, "peak_performance_fp16": 13.6e12,
+        "memory_bandwidth": 400e9, "memory_capacity": 96e9,
+        "tdp_w": 40, "cost_usd": 1800, "tech_node_nm": 5,
+        "carbon_mfg_kgco2e": 60, "compute_power_frac": 0.35,
     },
 
     # ── Intel ─────────────────────────────────────────────────────────────────
     "Intel Gaudi 3": {
         "name": "Intel Gaudi 3", "category": "AI Accelerator",
-        "peak_performance": 99.5e12,
-        "peak_performance_fp16": 1835e12,
-        "memory_bandwidth": 3.7e12,
-        "memory_capacity": 96e9,
+        "peak_performance": 99.5e12, "peak_performance_fp16": 1835e12,
+        "memory_bandwidth": 3.7e12, "memory_capacity": 96e9,
+        "tdp_w": 600, "cost_usd": 10000, "tech_node_nm": 5,
+        "carbon_mfg_kgco2e": 130, "compute_power_frac": 0.55,
     },
     "Intel Xeon Platinum 8480+": {
         "name": "Intel Xeon Platinum 8480+", "category": "CPU",
-        "peak_performance": 3.84e12,
-        "peak_performance_fp16": 3.84e12,
-        "memory_bandwidth": 307e9,      # DDR5
-        "memory_capacity": 4096e9,      # configurable
+        "peak_performance": 3.84e12, "peak_performance_fp16": 3.84e12,
+        "memory_bandwidth": 307e9, "memory_capacity": 4096e9,
+        "tdp_w": 350, "cost_usd": 8000, "tech_node_nm": 10,
+        "carbon_mfg_kgco2e": 80, "compute_power_frac": 0.45,
     },
 
     # ── Mobile / Edge ─────────────────────────────────────────────────────────
     "Snapdragon 8 Gen 3 NPU": {
         "name": "Snapdragon 8 Gen 3 NPU", "category": "Mobile NPU",
-        "peak_performance": 45e12,       # INT8 TOPS
-        "peak_performance_fp16": 10e12,
-        "memory_bandwidth": 77e9,        # LPDDR5X
-        "memory_capacity": 16e9,
+        "peak_performance": 45e12, "peak_performance_fp16": 10e12,
+        "memory_bandwidth": 77e9, "memory_capacity": 16e9,
+        "tdp_w": 8, "cost_usd": 200, "tech_node_nm": 4,
+        "carbon_mfg_kgco2e": 15, "compute_power_frac": 0.4,
     },
     "Snapdragon 8 Gen 2 NPU": {
         "name": "Snapdragon 8 Gen 2 NPU", "category": "Mobile NPU",
-        "peak_performance": 18e12,
-        "peak_performance_fp16": 4.35e12,
-        "memory_bandwidth": 51.2e9,
-        "memory_capacity": 12e9,
+        "peak_performance": 18e12, "peak_performance_fp16": 4.35e12,
+        "memory_bandwidth": 51.2e9, "memory_capacity": 12e9,
+        "tdp_w": 6, "cost_usd": 150, "tech_node_nm": 4,
+        "carbon_mfg_kgco2e": 12, "compute_power_frac": 0.4,
     },
     "MediaTek Dimensity 9300 NPU": {
         "name": "MediaTek Dimensity 9300 NPU", "category": "Mobile NPU",
-        "peak_performance": 35e12,
-        "peak_performance_fp16": 8e12,
-        "memory_bandwidth": 77e9,
-        "memory_capacity": 16e9,
+        "peak_performance": 35e12, "peak_performance_fp16": 8e12,
+        "memory_bandwidth": 77e9, "memory_capacity": 16e9,
+        "tdp_w": 7, "cost_usd": 180, "tech_node_nm": 4,
+        "carbon_mfg_kgco2e": 13, "compute_power_frac": 0.4,
     },
 
     # ── Processing-In-Memory (PIM) ───────────────────────────────────────────
     "DRAM-PIM (HBM-PIM)": {
         "name": "DRAM-PIM (HBM-PIM)", "category": "PIM",
-        "peak_performance": 0.8e12,
-        "peak_performance_fp16": 1.6e12,
-        "memory_bandwidth": 1.2e12,
-        "memory_capacity": 32e9,
+        "peak_performance": 0.8e12, "peak_performance_fp16": 1.6e12,
+        "memory_bandwidth": 1.2e12, "memory_capacity": 32e9,
+        "tdp_w": 30, "cost_usd": 800, "tech_node_nm": 10,
+        "carbon_mfg_kgco2e": 25, "compute_power_frac": 0.3,
     },
     "NAND-PIM (HILOS)": {
         "name": "NAND-PIM (HILOS)", "category": "PIM",
-        "peak_performance": 0.2e12,
-        "peak_performance_fp16": 0.4e12,
-        "memory_bandwidth": 0.2e12,
-        "memory_capacity": 128e9,       # large NAND capacity
+        "peak_performance": 0.2e12, "peak_performance_fp16": 0.4e12,
+        "memory_bandwidth": 0.2e12, "memory_capacity": 128e9,
+        "tdp_w": 5, "cost_usd": 200, "tech_node_nm": 176,
+        "carbon_mfg_kgco2e": 8, "compute_power_frac": 0.2,
     },
     "SRAM-PIM (MRAM)": {
         "name": "SRAM-PIM (MRAM)", "category": "PIM",
-        "peak_performance": 2.0e12,
-        "peak_performance_fp16": 4.0e12,
-        "memory_bandwidth": 4.0e12,
-        "memory_capacity": 8e9,
+        "peak_performance": 2.0e12, "peak_performance_fp16": 4.0e12,
+        "memory_bandwidth": 4.0e12, "memory_capacity": 8e9,
+        "tdp_w": 20, "cost_usd": 500, "tech_node_nm": 22,
+        "carbon_mfg_kgco2e": 20, "compute_power_frac": 0.35,
+    },
+
+    # ── Chiplet / Heterogeneous Architectures ─────────────────────────────────
+    # Based on: Cambricon-LLM (Yu et al. 2024) — chiplet-based hybrid
+    # SRAM chiplet (hot weights) + DRAM chiplet (KV cache) + Flash chiplet (full model)
+    "Cambricon-LLM (Chiplet)": {
+        "name": "Cambricon-LLM (Chiplet)", "category": "Chiplet/PIM",
+        "peak_performance": 10e12,
+        "peak_performance_fp16": 20e12,
+        # Primary bandwidth (SRAM tier, for active compute)
+        "memory_bandwidth": 8e12,
+        "memory_capacity": 32e9,
+        "tdp_w": 40, "cost_usd": 800, "tech_node_nm": 7,
+        "carbon_mfg_kgco2e": 35, "compute_power_frac": 0.5,
+        # Heterogeneous memory tiers
+        "is_heterogeneous": True,
+        "memory_tiers": {
+            "SRAM": {
+                "bandwidth": 8e12,    # 8 TB/s (on-chip SRAM)
+                "capacity": 0.5e9,    # 512 MB SRAM chiplet
+                "energy_per_byte_pj": 1.0,
+                "latency_ns": 1,
+            },
+            "DRAM": {
+                "bandwidth": 512e9,   # 512 GB/s HBM
+                "capacity": 16e9,     # 16 GB HBM
+                "energy_per_byte_pj": 3.7,
+                "latency_ns": 100,
+            },
+            "Flash": {
+                "bandwidth": 14e9,    # 14 GB/s (NVMe-style NAND)
+                "capacity": 256e9,    # 256 GB NAND
+                "energy_per_byte_pj": 25.0,
+                "latency_ns": 100000,
+            },
+        },
+    },
+    # Flash-LLM style: sparse loading from NAND Flash
+    "Flash-LLM (NAND Storage)": {
+        "name": "Flash-LLM (NAND Storage)", "category": "Chiplet/PIM",
+        "peak_performance": 5e12,
+        "peak_performance_fp16": 10e12,
+        "memory_bandwidth": 14e9,     # Flash bottleneck
+        "memory_capacity": 512e9,     # 512 GB NAND
+        "tdp_w": 15, "cost_usd": 300, "tech_node_nm": 176,
+        "carbon_mfg_kgco2e": 20, "compute_power_frac": 0.4,
+        "is_heterogeneous": True,
+        "memory_tiers": {
+            "SRAM": {
+                "bandwidth": 4e12,
+                "capacity": 0.25e9,
+                "energy_per_byte_pj": 1.0,
+                "latency_ns": 1,
+            },
+            "DRAM": {
+                "bandwidth": 68e9,
+                "capacity": 4e9,      # 4 GB LPDDR5
+                "energy_per_byte_pj": 3.7,
+                "latency_ns": 100,
+            },
+            "Flash": {
+                "bandwidth": 14e9,    # UFS 4.0 / NVMe
+                "capacity": 512e9,
+                "energy_per_byte_pj": 25.0,
+                "latency_ns": 100000,
+            },
+        },
+    },
+    # Near-storage PIM on NAND (HILOS-style, detailed)
+    "NAND-PIM (Near-Storage)": {
+        "name": "NAND-PIM (Near-Storage)", "category": "Chiplet/PIM",
+        "peak_performance": 0.8e12,
+        "peak_performance_fp16": 1.6e12,
+        "memory_bandwidth": 1.6e12,   # internal NAND bandwidth
+        "memory_capacity": 256e9,
+        "tdp_w": 20, "cost_usd": 400, "tech_node_nm": 176,
+        "carbon_mfg_kgco2e": 15, "compute_power_frac": 0.25,
+        "is_heterogeneous": True,
+        "memory_tiers": {
+            "SRAM": {
+                "bandwidth": 2e12,
+                "capacity": 0.128e9,  # 128 MB on-chip buffer
+                "energy_per_byte_pj": 1.0,
+                "latency_ns": 1,
+            },
+            "DRAM": {
+                "bandwidth": 200e9,
+                "capacity": 2e9,      # small DRAM buffer
+                "energy_per_byte_pj": 3.7,
+                "latency_ns": 100,
+            },
+            "Flash": {
+                "bandwidth": 1.6e12,  # internal flash BW (PIM direct)
+                "capacity": 256e9,
+                "energy_per_byte_pj": 15.0,
+                "latency_ns": 10000,
+            },
+        },
     },
 
     # ── Custom ────────────────────────────────────────────────────────────────
     "Custom Hardware": {
         "name": "Custom Hardware", "category": "Custom",
-        "peak_performance": 10e12,
-        "peak_performance_fp16": 20e12,
-        "memory_bandwidth": 1e12,
-        "memory_capacity": 32e9,
+        "peak_performance": 10e12, "peak_performance_fp16": 20e12,
+        "memory_bandwidth": 1e12, "memory_capacity": 32e9,
+        "tdp_w": 200, "cost_usd": 2000, "tech_node_nm": 7,
+        "carbon_mfg_kgco2e": 50, "compute_power_frac": 0.5,
     },
 }
 
