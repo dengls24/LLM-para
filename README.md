@@ -1,9 +1,9 @@
-# LLM-Para: Transformer Computation & Roofline Analyzer
+# LLM-Para: A Multi-Metric First-Order Roofline Analysis Framework for LLM Inference on Heterogeneous Multi-Tier Memory Architectures
 
 <div align="center">
 
-### 🌐 [**llm-para.onrender.com**](https://llm-para.onrender.com) — Live Demo, No Install Needed
-
+[![Paper](https://img.shields.io/badge/📄_Research_Paper-LaTeX_Source-b31b1b?style=for-the-badge)](paper_draft/llm_para_paper.tex)
+[![PDF](https://img.shields.io/badge/📕_Paper_PDF-Download-ee3f24?style=for-the-badge)](paper_draft/llm_para_paper.pdf)
 [![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-llm--para.onrender.com-5b7eff?style=for-the-badge)](https://llm-para.onrender.com)
 
 </div>
@@ -15,13 +15,66 @@
 [![Flask](https://img.shields.io/badge/backend-Flask-lightgrey.svg)](https://flask.palletsprojects.com/)
 [![Web](https://img.shields.io/badge/web-Chart.js-ff6384.svg)](https://www.chartjs.org/)
 
-A comprehensive **web-based** toolchain for analyzing **computation complexity**, **memory access patterns**, and **hardware performance bottlenecks** in large Transformer-based language models. Features an interactive Roofline model visualization and detailed per-operator breakdown for the complete inference pipeline.
+A comprehensive **web-based analytical framework** for analyzing **computation complexity**, **memory access patterns**, **energy efficiency**, **TCO**, **carbon footprint**, and **hardware performance bottlenecks** in large Transformer-based language models. Features multi-metric Roofline analysis, heterogeneous multi-tier memory modeling, and multi-objective Design Space Exploration (DSE) with Pareto optimization.
 
 > **Try it now →** https://llm-para.onrender.com
 
 ---
 
-## 📸 Screenshots
+## 📄 Research Paper
+
+This repository accompanies the following research paper:
+
+> **LLM-Para: A Multi-Metric First-Order Roofline Analysis Framework for LLM Inference on Heterogeneous Multi-Tier Memory Architectures**
+>
+> Lishuo Deng
+>
+> **Abstract:** We present LLM-Para, a first-order analytical framework whose two principal contributions are: (1) a *heterogeneous memory-tier model* that analytically characterizes decode throughput on chiplet architectures with SRAM, DRAM, and NAND Flash tiers; and (2) a *multi-objective DSE engine* that sweeps five hardware parameters to produce Pareto-optimal configurations under performance, energy, TCO, and CO₂e objectives simultaneously. Supporting these, LLM-Para extends the classical Roofline and Energy Roofline to cover **13 operator types** across modern LLM architectures (GQA, MoE, SwiGLU, FlashAttention, RoPE, DeepSeek MLA) and **24 hardware platforms**.
+
+### Paper Files
+
+| File | Description |
+|:---|:---|
+| [`paper_draft/llm_para_paper.tex`](paper_draft/llm_para_paper.tex) | Full LaTeX source (IEEEtran format) |
+| [`paper_draft/llm_para_paper.pdf`](paper_draft/llm_para_paper.pdf) | Compiled PDF |
+| [`paper_draft/figures/`](paper_draft/figures/) | All figures (PDF + PNG) |
+| [`paper_draft/generate_figures.py`](paper_draft/generate_figures.py) | Figure generation script (matplotlib) |
+| [`paper_draft/PAPER_DRAFT.md`](paper_draft/PAPER_DRAFT.md) | Initial draft notes |
+
+### Key Figures from the Paper
+
+| Classical Roofline Analysis | Energy Roofline |
+|:---:|:---:|
+| ![Roofline](paper_draft/figures/fig1_roofline.png) | ![Energy](paper_draft/figures/fig2_energy_roofline.png) |
+
+| Heterogeneous Architecture Throughput | DSE Pareto Frontiers |
+|:---:|:---:|
+| ![Hetero](paper_draft/figures/fig3_hetero.png) | ![DSE](paper_draft/figures/fig4_dse_pareto.png) |
+
+| FLOPs Breakdown | Memory & Quantization Impact | TCO & Carbon Footprint |
+|:---:|:---:|:---:|
+| ![FLOPs](paper_draft/figures/fig5_flops_breakdown.png) | ![Memory](paper_draft/figures/fig6_memory_quant.png) | ![TCO](paper_draft/figures/fig7_tco_co2.png) |
+
+### Compile the Paper
+
+```bash
+cd paper_draft
+pdflatex llm_para_paper.tex
+pdflatex llm_para_paper.tex   # run twice for references
+```
+
+### Key Findings
+
+1. **Decode is universally memory-bound** — All decode-phase operators exhibit *I* ≤ 1 FLOP/Byte at batch size 1, regardless of architecture (GQA, MoE, MLA).
+2. **MoE reduces weight traffic selectively** — Mixtral activates 2/8 experts, loading only 25% of FFN weights, but the router is the most memory-inefficient operator (*I* ≈ 0.02).
+3. **MLA trades KV cache for compute** — DeepSeek-V2 MLA achieves 32× cache storage reduction at the cost of ~500× increase in per-layer attention FLOPs.
+4. **Flash-bottlenecked inference** — 8B models on NAND Flash are limited to ~1 token/s; INT4 quantization enables tier migration yielding **35× throughput gain**.
+5. **Near-memory sweet spot** — Configurations with BW=500–2000 GB/s, 5–20 TFLOPS achieve >20 tokens/s at <$5,000, dominating GPUs on TCO.
+6. **Carbon–performance trade-off** — 10× higher throughput incurs ~50× higher carbon per EFLOP on the global average grid.
+
+---
+
+## 📸 Web Interface Screenshots
 
 | Home & Configuration | Operations Table |
 |:---:|:---:|
@@ -192,15 +245,32 @@ LLM-para/
 ├── app.py              # Flask web server & REST API
 ├── analyzer.py         # Core analysis engine (all operators)
 ├── configs.py          # Model & hardware preset configs
+├── metrics.py          # Energy Roofline, TCO, CO₂e analysis
+├── hetero.py           # Heterogeneous multi-tier memory modeling
+├── dse.py              # Multi-objective Design Space Exploration
 ├── cli.py              # Command-line interface
 ├── requirements.txt
 ├── README.md
-└── static/
-    ├── index.html      # Web UI
-    ├── css/
-    │   └── style.css   # Dark theme stylesheet
-    └── js/
-        └── app.js      # Frontend application logic
+├── RESEARCH_DOC.md     # Detailed Chinese documentation (中文文档)
+├── paper_draft/        # 📄 Research Paper
+│   ├── llm_para_paper.tex    # Full LaTeX source (IEEEtran)
+│   ├── llm_para_paper.pdf    # Compiled PDF
+│   ├── generate_figures.py   # Publication figure generation
+│   ├── take_screenshots.py   # Web UI screenshot capture
+│   ├── PAPER_DRAFT.md        # Initial draft notes
+│   └── figures/              # All paper figures (PDF + PNG)
+│       ├── fig1_roofline.*
+│       ├── fig2_energy_roofline.*
+│       ├── fig3_hetero.*
+│       ├── fig4_dse_pareto.*
+│       ├── fig5_flops_breakdown.*
+│       ├── fig6_memory_quant.*
+│       └── fig7_tco_co2.*
+├── static/
+│   ├── index.html      # Web UI
+│   ├── css/style.css   # Dark theme stylesheet
+│   └── js/app.js       # Frontend application logic
+└── docs/               # Web interface screenshots
 ```
 
 ## 🔌 REST API
@@ -260,19 +330,27 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ## 📚 Citation
 
+If you find this work useful, please cite our paper:
+
 ```bibtex
-@software{llm_para_2024,
-  title={LLM-Para: Transformer Computation \& Roofline Analyzer},
-  author={dengls24},
-  year={2024},
+@article{deng2025llmpara,
+  title={LLM-Para: A Multi-Metric First-Order Roofline Analysis Framework
+         for LLM Inference on Heterogeneous Multi-Tier Memory Architectures},
+  author={Deng, Lishuo},
+  year={2025},
   url={https://github.com/dengls24/LLM-para},
-  note={Comprehensive per-operator FLOPs and Roofline analysis for LLM inference}
+  note={Source code and live demo available at
+        \url{https://llm-para.onrender.com}}
 }
 ```
 
-## 🔗 Related Work
+## 🔗 Related Work & References
 
-- [Roofline Model](https://people.eecs.berkeley.edu/~kubitron/cs252/handouts/papers/RooflineVyNoYellow.pdf)
-- [LLM-Viewer](https://github.com/hahnyuan/LLM-Viewer)
-- [FlashAttention](https://github.com/Dao-AILab/flash-attention)
-- [DeepSeek-V2 MLA](https://arxiv.org/abs/2405.04434)
+- [Roofline Model](https://people.eecs.berkeley.edu/~kubitron/cs252/handouts/papers/RooflineVyNoYellow.pdf) — Williams et al., CACM 2009
+- [LLM-Viewer](https://github.com/hahnyuan/LLM-Viewer) — Yuan et al., "LLM Inference Unveiled: Survey and Roofline Model Insights", 2024
+- [LLMCompass](https://github.com/PrincetonUniversity/LLMCompass) — Zhang et al., ISCA 2024
+- [Energy Roofline](https://ieeexplore.ieee.org/document/8366925) — Ghane et al., ISPASS 2018
+- [FlashAttention-2](https://github.com/Dao-AILab/flash-attention) — Dao, ICLR 2024
+- [DeepSeek-V2 MLA](https://arxiv.org/abs/2405.04434) — DeepSeek-AI, 2024
+- [Cambricon-LLM](https://arxiv.org/abs/2312.03134) — Yu et al., 2024
+- [LLM in a Flash](https://arxiv.org/abs/2312.11514) — Alizadeh et al., 2023
