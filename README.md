@@ -2,8 +2,10 @@
 
 <div align="center">
 
+<!-- [ANONYMOUS REVIEW] Paper badges hidden during submission
 [![Paper](https://img.shields.io/badge/📄_Research_Paper-LaTeX_Source-b31b1b?style=for-the-badge)](paper_draft/llm_para_paper.tex)
 [![PDF](https://img.shields.io/badge/📕_Paper_PDF-Download-ee3f24?style=for-the-badge)](paper_draft/llm_para_paper.pdf)
+-->
 [![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-llm--para.onrender.com-5b7eff?style=for-the-badge)](https://llm-para.onrender.com)
 
 </div>
@@ -27,10 +29,11 @@ This repository accompanies the following research paper:
 
 > **LLM-Para: A Multi-Metric First-Order Roofline Analysis Framework for LLM Inference on Heterogeneous Multi-Tier Memory Architectures**
 >
-> Lishuo Deng
+> Anonymous Authors
 >
 > **Abstract:** We present LLM-Para, a first-order analytical framework whose two principal contributions are: (1) a *heterogeneous memory-tier model* that analytically characterizes decode throughput on chiplet architectures with SRAM, DRAM, and NAND Flash tiers; and (2) a *multi-objective DSE engine* that sweeps five hardware parameters to produce Pareto-optimal configurations under performance, energy, TCO, and CO₂e objectives simultaneously. Supporting these, LLM-Para extends the classical Roofline and Energy Roofline to cover **13 operator types** across modern LLM architectures (GQA, MoE, SwiGLU, FlashAttention, RoPE, DeepSeek MLA) and **24 hardware platforms**.
 
+<!-- [ANONYMOUS REVIEW] Paper files section hidden - paper_draft/ excluded from anonymous release
 ### Paper Files
 
 | File | Description |
@@ -40,7 +43,9 @@ This repository accompanies the following research paper:
 | [`paper_draft/figures/`](paper_draft/figures/) | All figures (PDF + PNG) |
 | [`paper_draft/generate_figures.py`](paper_draft/generate_figures.py) | Figure generation script (matplotlib) |
 | [`paper_draft/PAPER_DRAFT.md`](paper_draft/PAPER_DRAFT.md) | Initial draft notes |
+-->
 
+<!-- [ANONYMOUS REVIEW] Key figures section hidden - paper_draft/ excluded from anonymous release
 ### Key Figures from the Paper
 
 | Classical Roofline Analysis | Energy Roofline |
@@ -62,6 +67,7 @@ cd paper_draft
 pdflatex llm_para_paper.tex
 pdflatex llm_para_paper.tex   # run twice for references
 ```
+-->
 
 ### Key Findings
 
@@ -146,7 +152,7 @@ Beyond standard Transformer analysis, LLM-Para models every operator in the infe
 ## 📦 Installation
 
 ```bash
-git clone https://github.com/dengls24/LLM-para.git
+git clone https://github.com/llmpara2026/LLM-Para
 cd LLM-para
 pip install -r requirements.txt
 ```
@@ -333,12 +339,12 @@ MIT License — see [LICENSE](LICENSE) for details.
 If you find this work useful, please cite our paper:
 
 ```bibtex
-@article{deng2025llmpara,
+@article{llmpara2025,
   title={LLM-Para: A Multi-Metric First-Order Roofline Analysis Framework
          for LLM Inference on Heterogeneous Multi-Tier Memory Architectures},
-  author={Deng, Lishuo},
+  author={Anonymous},
   year={2025},
-  url={https://github.com/dengls24/LLM-para},
+  url={https://github.com/llmpara2026/LLM-Para},
   note={Source code and live demo available at
         \url{https://llm-para.onrender.com}}
 }

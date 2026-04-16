@@ -76,16 +76,53 @@ function destroyChart(key) {
   }
 }
 
+// ── Theme ──────────────────────────────────────────────────────────────────────
+function getThemeColors() {
+  const s = getComputedStyle(document.documentElement);
+  return {
+    grid:   s.getPropertyValue('--border').trim(),
+    tick:   s.getPropertyValue('--text-secondary').trim(),
+    muted:  s.getPropertyValue('--text-muted').trim(),
+    primary:s.getPropertyValue('--text-primary').trim(),
+    bg:     s.getPropertyValue('--bg-elevated').trim(),
+    border: s.getPropertyValue('--border-light').trim(),
+  };
+}
+function initTheme() {
+  const t = localStorage.getItem('llmpara-theme') || 'dark';
+  applyTheme(t);
+}
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const icon = $('themeIcon');
+  if (icon) icon.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\uD83C\uDF19';
+  localStorage.setItem('llmpara-theme', theme);
+  refreshChartColors();
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
+function refreshChartColors() {
+  if (!state.currentResults) return;
+  const active = document.querySelector('.tab.active')?.dataset?.tab;
+  if (active === 'roofline') renderRoofline(state.currentResults);
+  if (active === 'charts')   renderCharts(state.currentResults, state.currentSummary);
+  if (active === 'memory')   renderMemory(state.currentResults, state.currentSummary, state.currentConfig);
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 async function init() {
+  initTheme();
   try {
-    const [modelsRes, hwRes, constRes, regionsRes, dsePresetsRes, heteroHwRes] = await Promise.all([
+    const [modelsRes, hwRes, constRes, regionsRes, dsePresetsRes, heteroHwRes, parallelHwRes] = await Promise.all([
       fetch('/api/models').then(r => r.json()),
       fetch('/api/hardware').then(r => r.json()),
       fetch('/api/constants').then(r => r.json()),
       fetch('/api/metrics/regions').then(r => r.json()),
       fetch('/api/dse/presets').then(r => r.json()),
       fetch('/api/hetero/hardware').then(r => r.json()),
+      fetch('/api/parallelism/hardware').then(r => r.json()),
     ]);
     state.models      = modelsRes.models;
     state.hardware    = hwRes.hardware;
@@ -93,6 +130,7 @@ async function init() {
     state.co2Regions  = regionsRes.regions || [];
     state.dsePresets  = dsePresetsRes.preset_params || {};
     state.heteroHW    = heteroHwRes.hardware || [];
+    state.parallelHW  = parallelHwRes.hardware || [];
 
     populateModelSelect();
     populateHardwareSelects();
@@ -177,6 +215,16 @@ function populateExtendedSelects() {
         opt.textContent = `${h.name} [${h.tiers.join('+')}]`;
         sel.appendChild(opt);
       });
+      // Show/update tier config when selection changes
+      sel.addEventListener('change', () => {
+        const hw = state.heteroHW.find(x => x.key === sel.value);
+        if (hw && hw.memory_tiers) {
+          fillTierConfig(hw.memory_tiers);
+          $('heteroTierConfig').classList.remove('hidden');
+        } else {
+          $('heteroTierConfig').classList.add('hidden');
+        }
+      });
     }
   }
 
@@ -211,6 +259,19 @@ function populateExtendedSelects() {
     renderDSEParamCards(dsePresets[Object.keys(dsePresets)[0]]);
     dseSel.addEventListener('change', () => {
       renderDSEParamCards(dsePresets[dseSel.value] || {});
+    });
+  }
+
+  // Parallel hardware
+  const parallelHW = state.parallelHW || [];
+  const parSel = $('parallelHW');
+  if (parSel && parallelHW.length > 0) {
+    parSel.innerHTML = '<option value="">— Select Multi-Chip Hardware —</option>';
+    parallelHW.forEach(h => {
+      const opt = document.createElement('option');
+      opt.value = h.key;
+      opt.textContent = `${h.name} (${h.num_devices} devices, ${h.inter_chip_bw_gbs} GB/s)`;
+      parSel.appendChild(opt);
     });
   }
 }
@@ -334,6 +395,20 @@ function setupEventListeners() {
   $('runTCOBtn')    && $('runTCOBtn').addEventListener('click', runTCOAnalysis);
   $('runHeteroBtn') && $('runHeteroBtn').addEventListener('click', runHeteroAnalysis);
   $('runDSEBtn')    && $('runDSEBtn').addEventListener('click', runDSE);
+  $('runParallelBtn') && $('runParallelBtn').addEventListener('click', runParallelAnalysis);
+  $('themeToggle') && $('themeToggle').addEventListener('click', toggleTheme);
+
+  // Parallel hardware select: update form defaults
+  if ($('parallelHW')) {
+    $('parallelHW').addEventListener('change', () => {
+      const hw = (state.parallelHW || []).find(h => h.key === $('parallelHW').value);
+      if (hw) {
+        $('parTP').value = hw.num_devices;
+        $('parBW').value = hw.inter_chip_bw_gbs;
+        $('parTopology').value = hw.topology || 'ring';
+      }
+    });
+  }
 }
 
 function setupCollapsibles() {
@@ -581,6 +656,7 @@ async function renderRoofline(results) {
   const hw = state.hardware.find(h => h.key === hwKey);
   if (!hw) return;
 
+  const c = getThemeColors();
   const ridgePoint = hw.peak_performance / hw.memory_bandwidth;
 
   // Prepare scatter points
@@ -663,20 +739,20 @@ async function renderRoofline(results) {
           type: 'logarithmic',
           title: {
             display: true, text: 'Arithmetic Intensity (FLOP/Byte)',
-            color: '#9098b8', font: { family: 'JetBrains Mono, monospace', size: 12 }
+            color: c.tick, font: { family: 'JetBrains Mono, monospace', size: 12 }
           },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8' },
+          grid: { color: c.grid },
+          ticks: { color: c.tick },
         },
         y: {
           type: 'logarithmic',
           title: {
             display: true, text: 'Attainable Performance (FLOP/s)',
-            color: '#9098b8', font: { family: 'JetBrains Mono, monospace', size: 12 }
+            color: c.tick, font: { family: 'JetBrains Mono, monospace', size: 12 }
           },
-          grid: { color: '#2a2f45' },
+          grid: { color: c.grid },
           ticks: {
-            color: '#9098b8',
+            color: c.tick,
             callback: v => fmt.perf(v),
           },
         },
@@ -684,14 +760,14 @@ async function renderRoofline(results) {
       plugins: {
         legend: {
           position: 'top',
-          labels: { color: '#9098b8', font: { size: 11 }, boxWidth: 12, padding: 12 },
+          labels: { color: c.tick, font: { size: 11 }, boxWidth: 12, padding: 12 },
         },
         tooltip: {
-          backgroundColor: '#1c2030',
-          borderColor: '#333a52',
+          backgroundColor: c.bg,
+          borderColor: c.border,
           borderWidth: 1,
-          titleColor: '#e8eaf2',
-          bodyColor: '#9098b8',
+          titleColor: c.primary,
+          bodyColor: c.tick,
           callbacks: {
             title: items => {
               const d = items[0]?.raw;
@@ -762,6 +838,7 @@ function renderRooflineLegend(catColors) {
 function renderCharts(results, summary) {
   const catColors = state.constants.category_colors || {};
   const cats = Object.keys(catColors);
+  const c = getThemeColors();
 
   // 1. FLOPs by category
   const catFlops = {};
@@ -876,15 +953,15 @@ function renderCharts(results, summary) {
       scales: {
         x: {
           type: 'logarithmic',
-          title: { display: true, text: 'Arithmetic Intensity (FLOP/B)', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8' },
+          title: { display: true, text: 'Arithmetic Intensity (FLOP/B)', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick },
         },
         y: {
           type: 'logarithmic',
-          title: { display: true, text: 'FLOPs', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', callback: v => fmt.flops(v) },
+          title: { display: true, text: 'FLOPs', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, callback: v => fmt.flops(v) },
         },
       },
       plugins: {
@@ -906,15 +983,16 @@ function renderCharts(results, summary) {
 }
 
 function chartOpts(yLabel, yFmt) {
+  const c = getThemeColors();
   return {
     responsive: true,
     maintainAspectRatio: false,
     scales: {
-      x: { grid: { color: '#2a2f45' }, ticks: { color: '#9098b8', font: { size: 11 } } },
+      x: { grid: { color: c.grid }, ticks: { color: c.tick, font: { size: 11 } } },
       y: {
-        grid: { color: '#2a2f45' },
-        ticks: { color: '#9098b8', font: { size: 11 }, callback: yFmt },
-        title: { display: true, text: yLabel, color: '#9098b8' },
+        grid: { color: c.grid },
+        ticks: { color: c.tick, font: { size: 11 }, callback: yFmt },
+        title: { display: true, text: yLabel, color: c.tick },
       },
     },
     ...darkChartOpts(),
@@ -922,16 +1000,17 @@ function chartOpts(yLabel, yFmt) {
 }
 
 function darkChartOpts() {
+  const c = getThemeColors();
   return {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        labels: { color: '#9098b8', font: { size: 11 }, boxWidth: 12, padding: 10 },
+        labels: { color: c.tick, font: { size: 11 }, boxWidth: 12, padding: 10 },
       },
       tooltip: {
-        backgroundColor: '#1c2030', borderColor: '#333a52', borderWidth: 1,
-        titleColor: '#e8eaf2', bodyColor: '#9098b8',
+        backgroundColor: c.bg, borderColor: c.border, borderWidth: 1,
+        titleColor: c.primary, bodyColor: c.tick,
       },
     },
   };
@@ -939,6 +1018,7 @@ function darkChartOpts() {
 
 // ── Memory Analysis ────────────────────────────────────────────────────────────
 function renderMemory(results, summary, cfg) {
+  const c = getThemeColors();
   // Weights bar
   const maxMem = 200; // GB reference
   const pct = Math.min(100, (summary.model_size_gb / maxMem) * 100);
@@ -978,14 +1058,14 @@ function renderMemory(results, summary, cfg) {
       maintainAspectRatio: false,
       scales: {
         x: {
-          title: { display: true, text: 'Context Length (tokens)', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', maxTicksLimit: 6, font: { size: 10 } },
+          title: { display: true, text: 'Context Length (tokens)', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, maxTicksLimit: 6, font: { size: 10 } },
         },
         y: {
-          title: { display: true, text: 'KV Cache Size', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', callback: fmt.bytes, font: { size: 10 } },
+          title: { display: true, text: 'KV Cache Size', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, callback: fmt.bytes, font: { size: 10 } },
         },
       },
       plugins: {
@@ -1037,18 +1117,18 @@ function renderMemory(results, summary, cfg) {
       scales: {
         x: {
           stacked: true,
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', callback: fmt.bytes, font: { size: 10 } },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, callback: fmt.bytes, font: { size: 10 } },
         },
         y: {
           stacked: true,
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', font: { size: 10 } },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, font: { size: 10 } },
         },
       },
       plugins: {
         legend: {
-          labels: { color: '#9098b8', font: { size: 11 }, boxWidth: 12 },
+          labels: { color: c.tick, font: { size: 11 }, boxWidth: 12 },
         },
         tooltip: {
           ...darkChartOpts().plugins.tooltip,
@@ -1121,6 +1201,7 @@ function renderEnergyRooflineChart(m) {
   const pts    = m.energy_points;
   const colors = state.constants.category_colors || {};
   const catList = [...new Set(pts.map(p => p.category))];
+  const c = getThemeColors();
 
   const datasets = [
     {
@@ -1176,19 +1257,19 @@ function renderEnergyRooflineChart(m) {
       scales: {
         x: {
           type: 'logarithmic',
-          title: { display: true, text: 'Arithmetic Intensity (FLOP/Byte)', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', font: { size: 10 } },
+          title: { display: true, text: 'Arithmetic Intensity (FLOP/Byte)', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, font: { size: 10 } },
         },
         y: {
           type: 'logarithmic',
-          title: { display: true, text: 'Energy Efficiency (GFLOPS/W)', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', font: { size: 10 } },
+          title: { display: true, text: 'Energy Efficiency (GFLOPS/W)', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, font: { size: 10 } },
         },
       },
       plugins: {
-        legend: { labels: { color: '#9098b8', font: { size: 11 }, boxWidth: 12 } },
+        legend: { labels: { color: c.tick, font: { size: 11 }, boxWidth: 12 } },
         annotation: { annotations },
         tooltip: {
           ...darkChartOpts().plugins.tooltip,
@@ -1209,6 +1290,7 @@ function renderEnergyRooflineChart(m) {
 function renderOpEnergyChart(pts) {
   const sorted = [...pts].sort((a, b) => b.energy_j - a.energy_j).slice(0, 14);
   const colors = state.constants.category_colors || {};
+  const c = getThemeColors();
   destroyChart('opEnergy');
   state.charts.opEnergy = new Chart($('opEnergyChart').getContext('2d'), {
     type: 'bar',
@@ -1225,9 +1307,9 @@ function renderOpEnergyChart(pts) {
     options: {
       responsive: true, maintainAspectRatio: false, indexAxis: 'y',
       scales: {
-        x: { grid: { color: '#2a2f45' }, ticks: { color: '#9098b8', font: { size: 10 },
+        x: { grid: { color: c.grid }, ticks: { color: c.tick, font: { size: 10 },
           callback: v => v.toFixed(2) + ' mJ' } },
-        y: { grid: { color: '#2a2f45' }, ticks: { color: '#9098b8', font: { size: 9 } } },
+        y: { grid: { color: c.grid }, ticks: { color: c.tick, font: { size: 9 } } },
       },
       plugins: {
         legend: { display: false },
@@ -1242,6 +1324,7 @@ function renderPowerUtilChart(pts) {
   const avgComputeUtil = pts.reduce((s, p) => s + (p.util_compute || 0), 0) / Math.max(1, pts.length);
   const avgMemUtil     = pts.reduce((s, p) => s + (p.util_memory  || 0), 0) / Math.max(1, pts.length);
   const idle           = Math.max(0, 1 - Math.max(avgComputeUtil, avgMemUtil));
+  const c = getThemeColors();
 
   destroyChart('powerUtil');
   state.charts.powerUtil = new Chart($('powerUtilChart').getContext('2d'), {
@@ -1258,7 +1341,7 @@ function renderPowerUtilChart(pts) {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#9098b8', font: { size: 11 }, boxWidth: 14 } },
+        legend: { position: 'bottom', labels: { color: c.tick, font: { size: 11 }, boxWidth: 14 } },
         tooltip: { ...darkChartOpts().plugins.tooltip,
           callbacks: { label: i => `${i.label}: ${i.raw.toFixed(1)}%` } },
       },
@@ -1325,7 +1408,8 @@ async function runTCOAnalysis() {
 }
 
 function renderTCOCharts(m, selectedHW) {
-  const t = m.tco; const c = m.co2e;
+  const t = m.tco; const co2 = m.co2e;
+  const c = getThemeColors();
 
   // TCO Breakdown (pie)
   destroyChart('tcoBreakdown');
@@ -1343,7 +1427,7 @@ function renderTCOCharts(m, selectedHW) {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#9098b8', font: { size: 11 }, boxWidth: 14 } },
+        legend: { position: 'bottom', labels: { color: c.tick, font: { size: 11 }, boxWidth: 14 } },
         tooltip: { ...darkChartOpts().plugins.tooltip,
           callbacks: { label: i => `${i.label}: $${i.raw.toLocaleString()}` } },
       },
@@ -1357,7 +1441,7 @@ function renderTCOCharts(m, selectedHW) {
     data: {
       labels: ['Operational CO₂e', 'Embodied CO₂e'],
       datasets: [{
-        data: [c.operational_co2e_kg, c.embodied_co2e_kg],
+        data: [co2.operational_co2e_kg, co2.embodied_co2e_kg],
         backgroundColor: ['#4ade8099', '#f8717199'],
         borderColor:     ['#4ade80',   '#f87171'],
         borderWidth: 2,
@@ -1366,7 +1450,7 @@ function renderTCOCharts(m, selectedHW) {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#9098b8', font: { size: 11 }, boxWidth: 14 } },
+        legend: { position: 'bottom', labels: { color: c.tick, font: { size: 11 }, boxWidth: 14 } },
         tooltip: { ...darkChartOpts().plugins.tooltip,
           callbacks: { label: i => `${i.label}: ${i.raw.toFixed(4)} kg CO₂e` } },
       },
@@ -1407,8 +1491,8 @@ function renderTCOCharts(m, selectedHW) {
     options: {
       responsive: true, maintainAspectRatio: false,
       scales: {
-        x: { grid: { color: '#2a2f45' }, ticks: { color: '#9098b8', font: { size: 9 } } },
-        y: { grid: { color: '#2a2f45' }, ticks: { color: '#9098b8', font: { size: 10 },
+        x: { grid: { color: c.grid }, ticks: { color: c.tick, font: { size: 9 } } },
+        y: { grid: { color: c.grid }, ticks: { color: c.tick, font: { size: 10 },
           callback: v => '$' + v.toFixed(0) } },
       },
       plugins: {
@@ -1449,14 +1533,14 @@ function renderTCOCharts(m, selectedHW) {
       scales: {
         x: {
           type: 'logarithmic',
-          title: { display: true, text: '$/GFLOPS (lower = better)', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', font: { size: 10 }, callback: v => '$' + v.toFixed(2) },
+          title: { display: true, text: '$/GFLOPS (lower = better)', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, font: { size: 10 }, callback: v => '$' + v.toFixed(2) },
         },
         y: {
-          title: { display: true, text: 'Energy Efficiency (GFLOPS/W)', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', font: { size: 10 } },
+          title: { display: true, text: 'Energy Efficiency (GFLOPS/W)', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, font: { size: 10 } },
         },
       },
       plugins: {
@@ -1487,7 +1571,11 @@ async function runHeteroAnalysis() {
     const res = await fetch('/api/hetero', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config: state.currentConfig, hardware_key: hwKey }),
+      body: JSON.stringify({
+        config: state.currentConfig,
+        hardware_key: hwKey,
+        memory_tiers: $('heteroTierConfig').classList.contains('hidden') ? null : readTierConfig(),
+      }),
     });
     const data = await res.json();
     if (!data.success) { showError(data.error); $('heteroEmpty').classList.remove('hidden'); return; }
@@ -1525,6 +1613,7 @@ function renderHeteroPlacementChart(ps) {
   const flashW = ps.weights_in_flash_gb || 0;
   const kv   = ps.kv_cache_gb || 0;
   const act  = ps.activations_gb || 0;
+  const c = getThemeColors();
 
   destroyChart('heteroPlacement');
   state.charts.heteroPlacement = new Chart($('heteroPlacementChart').getContext('2d'), {
@@ -1543,12 +1632,12 @@ function renderHeteroPlacementChart(ps) {
     options: {
       responsive: true, maintainAspectRatio: false,
       scales: {
-        x: { stacked: true, grid: { color: '#2a2f45' }, ticks: { color: '#9098b8', font: { size: 11 } } },
-        y: { stacked: true, grid: { color: '#2a2f45' }, ticks: { color: '#9098b8', font: { size: 10 },
+        x: { stacked: true, grid: { color: c.grid }, ticks: { color: c.tick, font: { size: 11 } } },
+        y: { stacked: true, grid: { color: c.grid }, ticks: { color: c.tick, font: { size: 10 },
           callback: v => v.toFixed(1) + ' GB' } },
       },
       plugins: {
-        legend: { labels: { color: '#9098b8', font: { size: 11 }, boxWidth: 12 } },
+        legend: { labels: { color: c.tick, font: { size: 11 }, boxWidth: 12 } },
         tooltip: { ...darkChartOpts().plugins.tooltip,
           callbacks: { label: i => `${i.dataset.label}: ${i.raw.toFixed(2)} GB` } },
       },
@@ -1558,6 +1647,7 @@ function renderHeteroPlacementChart(ps) {
 
 function renderHeteroThroughputChart(tp) {
   const tiers = ['SRAM', 'DRAM', 'Flash'].filter(t => tp[`tokens_per_sec_${t}`] !== undefined);
+  const c = getThemeColors();
   destroyChart('heteroThroughput');
   state.charts.heteroThroughput = new Chart($('heteroThroughputChart').getContext('2d'), {
     type: 'bar',
@@ -1574,9 +1664,9 @@ function renderHeteroThroughputChart(tp) {
     options: {
       responsive: true, maintainAspectRatio: false,
       scales: {
-        x: { grid: { color: '#2a2f45' }, ticks: { color: '#9098b8', font: { size: 11 } } },
-        y: { type: 'logarithmic', grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', font: { size: 10 }, callback: v => v.toFixed(0) } },
+        x: { grid: { color: c.grid }, ticks: { color: c.tick, font: { size: 11 } } },
+        y: { type: 'logarithmic', grid: { color: c.grid },
+          ticks: { color: c.tick, font: { size: 10 }, callback: v => v.toFixed(0) } },
       },
       plugins: {
         legend: { display: false },
@@ -1590,6 +1680,7 @@ function renderHeteroThroughputChart(tp) {
 function renderHeteroOpsChart(heteroOps) {
   const ops = heteroOps.filter(op => op.phase === 'Decode').slice(0, 12);
   const tierColors = { SRAM: '#4ade80', DRAM: '#22d3ee', Flash: '#fb923c' };
+  const c = getThemeColors();
   destroyChart('heteroOps');
   state.charts.heteroOps = new Chart($('heteroOpsChart').getContext('2d'), {
     type: 'bar',
@@ -1617,12 +1708,12 @@ function renderHeteroOpsChart(heteroOps) {
     options: {
       responsive: true, maintainAspectRatio: false,
       scales: {
-        x: { grid: { color: '#2a2f45' }, ticks: { color: '#9098b8', font: { size: 9 } } },
-        y: { grid: { color: '#2a2f45' }, ticks: { color: '#9098b8', font: { size: 10 },
+        x: { grid: { color: c.grid }, ticks: { color: c.tick, font: { size: 9 } } },
+        y: { grid: { color: c.grid }, ticks: { color: c.tick, font: { size: 10 },
           callback: v => v.toFixed(0) + ' GB/s' } },
       },
       plugins: {
-        legend: { labels: { color: '#9098b8', font: { size: 11 }, boxWidth: 12 } },
+        legend: { labels: { color: c.tick, font: { size: 11 }, boxWidth: 12 } },
         tooltip: { ...darkChartOpts().plugins.tooltip,
           callbacks: { label: i => `${i.dataset.label}: ${i.raw.toFixed(1)} GB/s` } },
       },
@@ -1709,6 +1800,7 @@ function renderDSEParetoChart(d) {
   const paretoPts = d.pareto_perf_cost;
   const fitPts    = allPts.filter(p =>  p.model_fits_memory);
   const noFitPts  = allPts.filter(p => !p.model_fits_memory);
+  const c = getThemeColors();
 
   destroyChart('dsePareto');
   state.charts.dsePareto = new Chart($('dseParetoChart').getContext('2d'), {
@@ -1752,18 +1844,18 @@ function renderDSEParetoChart(d) {
       scales: {
         x: {
           type: 'logarithmic',
-          title: { display: true, text: 'TCO per EFLOP (USD) — lower is better', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', font: { size: 10 }, callback: v => '$' + v.toFixed(0) },
+          title: { display: true, text: 'TCO per EFLOP (USD) — lower is better', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, font: { size: 10 }, callback: v => '$' + v.toFixed(0) },
         },
         y: {
-          title: { display: true, text: 'Attainable Performance (TFLOPS) — higher is better', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', font: { size: 10 } },
+          title: { display: true, text: 'Attainable Performance (TFLOPS) — higher is better', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, font: { size: 10 } },
         },
       },
       plugins: {
-        legend: { labels: { color: '#9098b8', font: { size: 11 }, boxWidth: 12 } },
+        legend: { labels: { color: c.tick, font: { size: 11 }, boxWidth: 12 } },
         tooltip: { ...darkChartOpts().plugins.tooltip,
           callbacks: {
             label: i => [i.raw.name, `TCO: $${i.raw.x?.toFixed(2)}/EFLOP`,
@@ -1780,6 +1872,7 @@ function renderDSEParetoEnergyChart(d) {
   const pareto = new Set(d.pareto_perf_energy.map(p => p.name));
   const paretoPts = d.pareto_perf_energy;
   const otherPts  = all.filter(p => !pareto.has(p.name));
+  const c = getThemeColors();
 
   destroyChart('dseParetoEnergy');
   state.charts.dseParetoEnergy = new Chart($('dseParetoEnergyChart').getContext('2d'), {
@@ -1809,18 +1902,18 @@ function renderDSEParetoEnergyChart(d) {
       responsive: true, maintainAspectRatio: false,
       scales: {
         x: {
-          title: { display: true, text: 'Energy Efficiency (GFLOPS/W)', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', font: { size: 10 } },
+          title: { display: true, text: 'Energy Efficiency (GFLOPS/W)', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, font: { size: 10 } },
         },
         y: {
-          title: { display: true, text: 'Performance (TFLOPS)', color: '#9098b8' },
-          grid: { color: '#2a2f45' },
-          ticks: { color: '#9098b8', font: { size: 10 } },
+          title: { display: true, text: 'Performance (TFLOPS)', color: c.tick },
+          grid: { color: c.grid },
+          ticks: { color: c.tick, font: { size: 10 } },
         },
       },
       plugins: {
-        legend: { labels: { color: '#9098b8', font: { size: 11 }, boxWidth: 12 } },
+        legend: { labels: { color: c.tick, font: { size: 11 }, boxWidth: 12 } },
         tooltip: { ...darkChartOpts().plugins.tooltip,
           callbacks: { label: i => [i.raw.name,
             `Eff: ${i.raw.x?.toFixed(2)} GFLOPS/W`, `Perf: ${i.raw.y?.toFixed(2)} TFLOPS`] },
@@ -1881,6 +1974,280 @@ function downloadBlob(blob, filename) {
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// ── Tier Config Helpers ────────────────────────────────────────────────────────
+
+function fillTierConfig(tiers) {
+  if (tiers.SRAM) {
+    $('tier_sram_bw').value = (tiers.SRAM.bandwidth / 1e12).toFixed(2);
+    $('tier_sram_cap').value = (tiers.SRAM.capacity / 1e9).toFixed(3);
+    $('tier_sram_energy').value = tiers.SRAM.energy_per_byte_pj;
+    $('tier_sram_latency').value = tiers.SRAM.latency_ns;
+  }
+  if (tiers.DRAM) {
+    $('tier_dram_bw').value = (tiers.DRAM.bandwidth / 1e9).toFixed(0);
+    $('tier_dram_cap').value = (tiers.DRAM.capacity / 1e9).toFixed(1);
+    $('tier_dram_energy').value = tiers.DRAM.energy_per_byte_pj;
+    $('tier_dram_latency').value = tiers.DRAM.latency_ns;
+  }
+  if (tiers.Flash) {
+    $('tier_flash_bw').value = (tiers.Flash.bandwidth / 1e9).toFixed(1);
+    $('tier_flash_cap').value = (tiers.Flash.capacity / 1e9).toFixed(0);
+    $('tier_flash_energy').value = tiers.Flash.energy_per_byte_pj;
+    $('tier_flash_latency').value = tiers.Flash.latency_ns;
+  }
+}
+
+function readTierConfig() {
+  return {
+    SRAM: {
+      bandwidth: parseFloat($('tier_sram_bw').value) * 1e12,
+      capacity: parseFloat($('tier_sram_cap').value) * 1e9,
+      energy_per_byte_pj: parseFloat($('tier_sram_energy').value),
+      latency_ns: parseFloat($('tier_sram_latency').value),
+    },
+    DRAM: {
+      bandwidth: parseFloat($('tier_dram_bw').value) * 1e9,
+      capacity: parseFloat($('tier_dram_cap').value) * 1e9,
+      energy_per_byte_pj: parseFloat($('tier_dram_energy').value),
+      latency_ns: parseFloat($('tier_dram_latency').value),
+    },
+    Flash: {
+      bandwidth: parseFloat($('tier_flash_bw').value) * 1e9,
+      capacity: parseFloat($('tier_flash_cap').value) * 1e9,
+      energy_per_byte_pj: parseFloat($('tier_flash_energy').value),
+      latency_ns: parseFloat($('tier_flash_latency').value),
+    },
+  };
+}
+
+// ── Multi-Chip Parallelism Tab ────────────────────────────────────────────────
+
+async function runParallelAnalysis() {
+  if (!state.currentConfig) { showError('Run an analysis first.'); return; }
+  const hwKey = $('parallelHW').value;
+  if (!hwKey) { showError('Select a multi-chip hardware.'); return; }
+
+  const btn = $('runParallelBtn');
+  btn.disabled = true; btn.textContent = 'Analyzing…';
+  $('parallelEmpty').classList.add('hidden');
+  $('parallelResults').classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/parallelism', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        config: state.currentConfig,
+        hardware_key: hwKey,
+        tp_degree: parseInt($('parTP').value) || 8,
+        pp_degree: parseInt($('parPP').value) || 1,
+        dp_degree: parseInt($('parDP').value) || 1,
+        inter_chip_bw_gbs: parseFloat($('parBW').value) || 900,
+        topology: $('parTopology').value || 'all_to_all',
+      }),
+    });
+    const data = await res.json();
+    if (!data.success) { showError(data.error); $('parallelEmpty').classList.remove('hidden'); return; }
+
+    const p = data.parallelism;
+    const s = p.summary;
+    const mem = p.per_device_memory;
+    const tp = p.throughput;
+
+    // Stats
+    $('ps-strategy').textContent = s.strategy;
+    $('ps-tps').textContent = tp.decode_tokens_per_sec.toFixed(2) + ' tok/s';
+    $('ps-speedup').textContent = tp.speedup.toFixed(2) + 'x';
+    $('ps-efficiency').textContent = tp.parallel_efficiency_pct.toFixed(1) + '%';
+    $('ps-overhead').textContent = tp.comm_overhead_pct.toFixed(1) + '%';
+    $('ps-weight-dev').textContent = mem.weights_gb.toFixed(2) + ' GB';
+    $('ps-kv-dev').textContent = mem.kv_cache_gb.toFixed(2) + ' GB';
+    $('ps-fits').innerHTML = mem.fits ?
+      '<span class="fits-yes">Yes (' + mem.utilization_pct.toFixed(0) + '%)</span>' :
+      '<span class="fits-no">No (' + mem.utilization_pct.toFixed(0) + '%)</span>';
+
+    renderParallelMemChart(mem);
+    renderParallelScalingChart(tp.scaling);
+    renderParallelCommChart(tp);
+    renderParallelEffChart(tp.scaling);
+    renderParallelShardTable(p.sharding, mem);
+
+    $('parallelResults').classList.remove('hidden');
+  } catch(e) {
+    showError('Parallelism analysis failed: ' + e.message);
+    $('parallelEmpty').classList.remove('hidden');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Analyze Sharding';
+  }
+}
+
+function renderParallelMemChart(mem) {
+  const c = getThemeColors();
+  destroyChart('parallelMem');
+  state.charts.parallelMem = new Chart($('parallelMemChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Weights', 'KV Cache', 'Activations', 'Free'],
+      datasets: [{
+        data: [mem.weights_gb, mem.kv_cache_gb, mem.activations_gb,
+               Math.max(0, mem.device_capacity_gb - mem.total_per_device_gb)],
+        backgroundColor: ['#5b7eff99', '#22d3ee99', '#4ade8099', '#2a2f4555'],
+        borderColor:     ['#5b7eff',   '#22d3ee',   '#4ade80',   '#333a52'],
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: c.tick, font: { size: 11 }, boxWidth: 14 } },
+        tooltip: { ...darkChartOpts().plugins.tooltip,
+          callbacks: { label: i => `${i.label}: ${i.raw.toFixed(2)} GB` } },
+      },
+    },
+  });
+}
+
+function renderParallelScalingChart(scaling) {
+  const c = getThemeColors();
+  destroyChart('parallelScaling');
+  state.charts.parallelScaling = new Chart($('parallelScalingChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: scaling.map(s => s.devices),
+      datasets: [
+        {
+          label: 'Actual Tokens/s',
+          data: scaling.map(s => s.tokens_per_sec),
+          borderColor: '#5b7eff',
+          backgroundColor: '#5b7eff33',
+          fill: true,
+          tension: 0.2,
+          pointRadius: 4,
+        },
+        {
+          label: 'Ideal Scaling',
+          data: scaling.map(s => scaling[0].tokens_per_sec * s.devices),
+          borderColor: '#4ade8055',
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: 'Number of Devices', color: c.tick },
+             grid: { color: c.grid }, ticks: { color: c.tick } },
+        y: { title: { display: true, text: 'Tokens/s (Decode)', color: c.tick },
+             grid: { color: c.grid }, ticks: { color: c.tick } },
+      },
+      plugins: {
+        legend: { labels: { color: c.tick, font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { ...darkChartOpts().plugins.tooltip,
+          callbacks: { label: i => `${i.dataset.label}: ${i.raw.toFixed(2)} tok/s` } },
+      },
+    },
+  });
+}
+
+function renderParallelCommChart(tp) {
+  const c = getThemeColors();
+  destroyChart('parallelComm');
+  state.charts.parallelComm = new Chart($('parallelCommChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Per Layer'],
+      datasets: [
+        { label: 'Compute (\u00b5s)', data: [tp.compute_time_per_layer_us],
+          backgroundColor: '#5b7eff99', borderColor: '#5b7eff', borderWidth: 1.5 },
+        { label: 'Communication (\u00b5s)', data: [tp.comm_time_per_layer_us],
+          backgroundColor: '#fb923c99', borderColor: '#fb923c', borderWidth: 1.5 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: c.grid }, ticks: { color: c.tick } },
+        y: { grid: { color: c.grid },
+             ticks: { color: c.tick, callback: v => v.toFixed(0) + ' \u00b5s' },
+             title: { display: true, text: 'Time per Layer', color: c.tick } },
+      },
+      plugins: {
+        legend: { labels: { color: c.tick, font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { ...darkChartOpts().plugins.tooltip,
+          callbacks: { label: i => `${i.dataset.label}: ${i.raw.toFixed(1)} \u00b5s` } },
+      },
+    },
+  });
+}
+
+function renderParallelEffChart(scaling) {
+  const c = getThemeColors();
+  destroyChart('parallelEff');
+  state.charts.parallelEff = new Chart($('parallelEffChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: scaling.map(s => s.devices),
+      datasets: [
+        {
+          label: 'Parallel Efficiency',
+          data: scaling.map(s => s.efficiency_pct),
+          borderColor: '#22d3ee',
+          backgroundColor: '#22d3ee33',
+          fill: true,
+          tension: 0.2,
+          pointRadius: 4,
+        },
+        {
+          label: 'Ideal (100%)',
+          data: scaling.map(() => 100),
+          borderColor: '#4ade8055',
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: 'Number of Devices', color: c.tick },
+             grid: { color: c.grid }, ticks: { color: c.tick } },
+        y: { title: { display: true, text: 'Efficiency (%)', color: c.tick },
+             grid: { color: c.grid }, ticks: { color: c.tick },
+             min: 0, max: 110 },
+      },
+      plugins: {
+        legend: { labels: { color: c.tick, font: { size: 11 }, boxWidth: 12 } },
+        tooltip: { ...darkChartOpts().plugins.tooltip,
+          callbacks: { label: i => `${i.dataset.label}: ${i.raw.toFixed(1)}%` } },
+      },
+    },
+  });
+}
+
+function renderParallelShardTable(sharding, mem) {
+  const tbody = $('parallelShardBody');
+  tbody.innerHTML = '';
+  const rows = [
+    { type: 'Weights', total: fmt.bytes(sharding.total_weight_bytes),
+      perDev: sharding.weight_per_device_gb.toFixed(2) + ' GB',
+      shard: `Split by TP=${sharding.strategy.split(',')[0].split('=')[1]} and PP` },
+    { type: 'KV Cache', total: '—',
+      perDev: mem.kv_cache_gb.toFixed(2) + ' GB',
+      shard: `KV heads/device: ${sharding.kv_heads_per_device}` },
+    { type: 'Activations', total: '—',
+      perDev: mem.activations_gb.toFixed(2) + ' GB',
+      shard: 'Per micro-batch' },
+  ];
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="font-weight:500">${r.type}</td><td>${r.total}</td><td>${r.perDev}</td><td class="note-cell">${r.shard}</td>`;
+    tbody.appendChild(tr);
+  }
 }
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────────

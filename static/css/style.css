@@ -41,6 +41,62 @@
   --shadow-sm: 0 2px 8px rgba(0,0,0,.3);
 }
 
+/* ── Light Theme ──────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-base:       #f0f2f7;
+  --bg-surface:    #ffffff;
+  --bg-elevated:   #f7f8fb;
+  --bg-highlight:  #eceef5;
+  --border:        #d8dce8;
+  --border-light:  #c8cdd8;
+  --text-primary:  #1a1d2e;
+  --text-secondary:#455070;
+  --text-muted:    #7c86a2;
+  --accent:        #4361ee;
+  --accent-glow:   #4361ee1a;
+  --accent-hover:  #3651de;
+  --accent-green:  #22a055;
+  --accent-orange: #e87d20;
+  --accent-red:    #dc4444;
+  --accent-cyan:   #0d8fa0;
+  --accent-purple: #7c5cc4;
+  --shadow:    0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
+}
+[data-theme="light"] .topbar          { background: #ffffff; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+[data-theme="light"] .sidebar         { background: #ffffff; border-right-color: #e2e5ee; }
+[data-theme="light"] .config-section  { background: #f7f8fb; border-color: #e2e5ee; }
+[data-theme="light"] .summary-card    { background: #ffffff; border-color: #e2e5ee; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+[data-theme="light"] .summary-card:hover { border-color: var(--accent); box-shadow: 0 2px 12px rgba(67,97,238,.12); }
+[data-theme="light"] .chart-card      { background: #ffffff; border-color: #e2e5ee; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+[data-theme="light"] .data-table thead { background: #f3f5fa; }
+[data-theme="light"] .data-table tbody tr:hover { background: #f0f2f8; }
+[data-theme="light"] .table-wrap      { border-color: #e2e5ee; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+[data-theme="light"] .card-value      { color: #0d7a90; }
+[data-theme="light"] .hw-stat > span:last-child { color: #0d7a90; }
+[data-theme="light"] .rstat > span:last-child   { color: #0d7a90; }
+[data-theme="light"] .phase-Prefill  { background: #dce8fc; color: #2968d0; }
+[data-theme="light"] .phase-Decode   { background: #dcf5e4; color: #1a8040; }
+[data-theme="light"] .phase-Output   { background: #eedcf5; color: #7030a0; }
+[data-theme="light"] .toast-error    { background: #fdeaea; border-color: #e05050; color: #c03030; }
+[data-theme="light"] .spinner        { border-color: rgba(0,0,0,.15); border-top-color: #333; }
+[data-theme="light"] .select-input   { background: #ffffff; border-color: #d0d5e2; }
+[data-theme="light"] .form-grid input[type="number"] { background: #ffffff; border-color: #d0d5e2; }
+[data-theme="light"] .num-sm         { background: #ffffff; border-color: #d0d5e2; }
+[data-theme="light"] .select-sm      { background: #ffffff; border-color: #d0d5e2; }
+[data-theme="light"] .btn-primary    { box-shadow: 0 2px 8px rgba(67,97,238,.2); }
+[data-theme="light"] .btn-primary:hover { box-shadow: 0 4px 16px rgba(67,97,238,.25); }
+[data-theme="light"] .bit-btn        { background: #ffffff; border-color: #d0d5e2; }
+[data-theme="light"] .bit-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+[data-theme="light"] .filter-btn     { background: #ffffff; border-color: #d0d5e2; }
+[data-theme="light"] .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+[data-theme="light"] .feature-pills span { background: #eef0f8; border-color: #d8dce8; }
+[data-theme="light"] .mem-card       { background: #ffffff; border-color: #e2e5ee; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+[data-theme="light"] .roofline-stats { background: #ffffff; border-color: #e2e5ee; }
+[data-theme="light"] .info-note      { background: #f5f7fc; border-left-color: var(--accent); }
+[data-theme="light"] .dse-param-card { background: #ffffff; border-color: #e2e5ee; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+[data-theme="light"] .chart-container-large { background: #ffffff; border-color: #e2e5ee; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+
 /* ── Reset ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; }
@@ -733,3 +789,47 @@ body {
   .tco-params { flex-direction: column; }
   .dse-preset-row { flex-direction: column; }
 }
+
+/* ── Theme toggle ─────────────────────────────────────── */
+.theme-toggle { font-size: 18px; line-height: 1; background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 8px; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; }
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+.beta-badge { display:inline-block; padding:1px 6px; border-radius:var(--radius-sm); font-size:9px; font-weight:700; text-transform:uppercase; background:var(--accent-orange); color:#fff; margin-left:4px; vertical-align:middle; }
+
+/* ── Memory Tier Config Panel ─────────────────────────── */
+.tier-config-panel { margin: 12px 0; }
+.tier-config-title {
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px;
+}
+.tier-config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 1100px) { .tier-config-grid { grid-template-columns: 1fr; } }
+.tier-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.tier-card-header {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+  margin-bottom: 10px;
+}
+.tier-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.tier-sram-dot  { background: var(--accent-green); }
+.tier-dram-dot  { background: var(--accent-cyan); }
+.tier-flash-dot { background: var(--accent-orange); }
+.tier-sram-card  { border-left: 3px solid var(--accent-green); }
+.tier-dram-card  { border-left: 3px solid var(--accent-cyan); }
+.tier-flash-card { border-left: 3px solid var(--accent-orange); }
+
+.tier-card .form-grid { grid-template-columns: 1fr 1fr; }
+.tier-card .form-grid label { font-size: 10px; }
+.tier-card .form-grid .num-sm { width: 100%; font-size: 11px; padding: 3px 6px; }
+
+/* ── Parallel Config Panel ────────────────────────────── */
+.parallel-config-panel { margin: 12px 0; }

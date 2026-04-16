@@ -23,6 +23,9 @@
     <span class="topbar-tagline">Transformer Computation &amp; Roofline Analyzer</span>
   </div>
   <div class="topbar-right">
+    <button id="themeToggle" class="theme-toggle" title="Toggle light/dark theme">
+      <span id="themeIcon"></span>
+    </button>
     <!-- [ANONYMOUS REVIEW] GitHub button hidden during submission review period
     <a href="https://github.com/dengls24/LLM-para" target="_blank" class="btn btn-ghost">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
@@ -291,6 +294,7 @@
         <button class="tab" data-tab="tco">💰 TCO &amp; CO₂e</button>
         <button class="tab" data-tab="hetero">🔬 Hetero Architecture</button>
         <button class="tab" data-tab="dse">🎯 DSE Explorer</button>
+        <button class="tab" data-tab="parallel">🔗 Multi-Chip Sharding <span class="beta-badge">WIP</span></button>
       </div>
 
       <!-- Tab: Operations Table -->
@@ -489,8 +493,41 @@
           </div>
           <button class="btn btn-sm btn-primary" id="runHeteroBtn">Analyze Placement</button>
         </div>
+        <!-- Editable Memory Tier Configuration -->
+        <div id="heteroTierConfig" class="tier-config-panel hidden">
+          <h4 class="tier-config-title">Memory Tier Configuration</h4>
+          <div class="tier-config-grid">
+            <div class="tier-card tier-sram-card">
+              <div class="tier-card-header"><span class="tier-dot tier-sram-dot"></span> SRAM</div>
+              <div class="form-grid">
+                <label>Bandwidth (TB/s) <input type="number" id="tier_sram_bw" value="8" min="0.01" step="0.1" class="num-sm"/></label>
+                <label>Capacity (GB) <input type="number" id="tier_sram_cap" value="0.5" min="0.001" step="0.1" class="num-sm"/></label>
+                <label>Energy (pJ/B) <input type="number" id="tier_sram_energy" value="1.0" min="0.01" step="0.1" class="num-sm"/></label>
+                <label>Latency (ns) <input type="number" id="tier_sram_latency" value="1" min="0.1" step="0.1" class="num-sm"/></label>
+              </div>
+            </div>
+            <div class="tier-card tier-dram-card">
+              <div class="tier-card-header"><span class="tier-dot tier-dram-dot"></span> DRAM</div>
+              <div class="form-grid">
+                <label>Bandwidth (GB/s) <input type="number" id="tier_dram_bw" value="512" min="1" step="1" class="num-sm"/></label>
+                <label>Capacity (GB) <input type="number" id="tier_dram_cap" value="16" min="0.1" step="0.5" class="num-sm"/></label>
+                <label>Energy (pJ/B) <input type="number" id="tier_dram_energy" value="3.7" min="0.01" step="0.1" class="num-sm"/></label>
+                <label>Latency (ns) <input type="number" id="tier_dram_latency" value="100" min="1" step="10" class="num-sm"/></label>
+              </div>
+            </div>
+            <div class="tier-card tier-flash-card">
+              <div class="tier-card-header"><span class="tier-dot tier-flash-dot"></span> Flash / NAND</div>
+              <div class="form-grid">
+                <label>Bandwidth (GB/s) <input type="number" id="tier_flash_bw" value="14" min="0.1" step="0.5" class="num-sm"/></label>
+                <label>Capacity (GB) <input type="number" id="tier_flash_cap" value="256" min="1" step="10" class="num-sm"/></label>
+                <label>Energy (pJ/B) <input type="number" id="tier_flash_energy" value="25.0" min="0.1" step="1" class="num-sm"/></label>
+                <label>Latency (ns) <input type="number" id="tier_flash_latency" value="100000" min="100" step="1000" class="num-sm"/></label>
+              </div>
+            </div>
+          </div>
+        </div>
         <div id="heteroEmpty" class="info-note" style="margin:20px 0">
-          Select a heterogeneous architecture (Cambricon-LLM, Flash-LLM, NAND-PIM) and click Analyze.
+          Select a heterogeneous architecture (Cambricon-LLM, Flash-LLM, NAND-PIM, or Custom) and click Analyze. You can edit the memory tier parameters above.
         </div>
         <div id="heteroResults" class="hidden">
           <div class="stats-row" id="heteroStats">
@@ -569,6 +606,78 @@
             <table class="data-table" id="dseParetoTable">
               <thead><tr><th>Name</th><th>Peak (TFLOPS)</th><th>BW (GB/s)</th><th>Cap (GB)</th><th>TDP (W)</th><th>Cost ($)</th><th>Attain (TFLOPS)</th><th>Energy Eff.</th><th>TCO/EFLOP</th><th>CO₂/EFLOP</th><th>Fits?</th></tr></thead>
               <tbody id="dseParetoBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Multi-Chip Sharding (WIP) -->
+      <div class="tab-panel" id="panel-parallel">
+        <div class="info-note" style="margin-bottom:16px">
+          <strong>Work in Progress:</strong> This tab models how LLM states (weights, KV cache, activations) are sharded across multiple chips, including chip-to-chip communication overhead.
+        </div>
+        <div class="roofline-toolbar">
+          <div class="roofline-hw-select">
+            <label>Multi-Chip HW: <select id="parallelHW" class="select-sm"></select></label>
+          </div>
+        </div>
+        <!-- Parallelism Configuration -->
+        <div class="parallel-config-panel">
+          <h4 class="tier-config-title">Sharding Strategy</h4>
+          <div class="tco-params">
+            <label>TP Degree: <input type="number" id="parTP" value="8" min="1" max="64" class="num-sm"/></label>
+            <label>PP Degree: <input type="number" id="parPP" value="1" min="1" max="64" class="num-sm"/></label>
+            <label>DP Degree: <input type="number" id="parDP" value="1" min="1" max="64" class="num-sm"/></label>
+            <label>Inter-Chip BW (GB/s): <input type="number" id="parBW" value="900" min="1" step="10" class="num-sm"/></label>
+            <label>Topology:
+              <select id="parTopology" class="select-sm">
+                <option value="ring">Ring</option>
+                <option value="all_to_all" selected>All-to-All (NVLink)</option>
+                <option value="mesh">2D Mesh</option>
+              </select>
+            </label>
+            <button class="btn btn-sm btn-primary" id="runParallelBtn">Analyze Sharding</button>
+          </div>
+        </div>
+        <div id="parallelEmpty" class="info-note" style="margin:16px 0">
+          Select a multi-chip hardware cluster and configure TP/PP/DP degrees, then click Analyze.
+        </div>
+        <div id="parallelResults" class="hidden">
+          <div class="stats-row" id="parallelStats">
+            <div class="rstat"><span>Strategy</span><span id="ps-strategy">—</span></div>
+            <div class="rstat"><span>Decode Tokens/s</span><span id="ps-tps">—</span></div>
+            <div class="rstat"><span>Speedup</span><span id="ps-speedup">—</span></div>
+            <div class="rstat"><span>Efficiency</span><span id="ps-efficiency">—</span></div>
+            <div class="rstat"><span>Comm Overhead</span><span id="ps-overhead">—</span></div>
+            <div class="rstat"><span>Weight/Device</span><span id="ps-weight-dev">—</span></div>
+            <div class="rstat"><span>KV Cache/Device</span><span id="ps-kv-dev">—</span></div>
+            <div class="rstat"><span>Mem Fits?</span><span id="ps-fits">—</span></div>
+          </div>
+          <div class="charts-grid-2">
+            <div class="chart-card">
+              <div class="chart-title">Per-Device Memory Breakdown</div>
+              <div class="chart-container"><canvas id="parallelMemChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Scaling Curve (Tokens/s vs Devices)</div>
+              <div class="chart-container"><canvas id="parallelScalingChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Compute vs Communication Time per Layer</div>
+              <div class="chart-container"><canvas id="parallelCommChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Parallel Efficiency vs Device Count</div>
+              <div class="chart-container"><canvas id="parallelEffChart"></canvas></div>
+            </div>
+          </div>
+          <div class="hetero-placement-table">
+            <h4>Sharding Summary</h4>
+            <table class="data-table" id="parallelShardTable">
+              <thead><tr>
+                <th>Data Type</th><th>Total Size</th><th>Per Device</th><th>Sharding</th>
+              </tr></thead>
+              <tbody id="parallelShardBody"></tbody>
             </table>
           </div>
         </div>

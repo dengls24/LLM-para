@@ -14,6 +14,7 @@ from configs import MODEL_CONFIGS, HARDWARE_CONFIGS, CATEGORY_COLORS, PHASE_SHAP
 from metrics import run_full_metrics, CARBON_INTENSITY_GRID
 from hetero import HeteroAnalyzer
 from dse import DSEEngine, DSE_PRESETS
+from parallelism import ParallelismAnalyzer, ParallelismConfig
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
@@ -267,21 +268,25 @@ def get_carbon_regions():
 def hetero_analysis():
     """
     Analyze LLM inference on a heterogeneous memory architecture.
-    Body: { config, hardware_key }
-    Only valid for hardware with is_heterogeneous=True.
+    Body: { config, hardware_key, memory_tiers? }
     """
     try:
         body   = request.get_json()
         cfg    = body.get('config', {})
         hw_key = body.get('hardware_key', '')
+        custom_tiers = body.get('memory_tiers', None)
 
         if not hw_key or hw_key not in HARDWARE_CONFIGS:
             return jsonify({'error': f'Unknown hardware: {hw_key}'}), 400
 
-        hw = HARDWARE_CONFIGS[hw_key]
+        hw = dict(HARDWARE_CONFIGS[hw_key])   # copy to avoid mutation
         if not hw.get('is_heterogeneous'):
             return jsonify({'error': f'Hardware "{hw_key}" is not heterogeneous. '
-                            'Select Cambricon-LLM, Flash-LLM, or NAND-PIM.'}), 400
+                            'Select Cambricon-LLM, Flash-LLM, NAND-PIM, or Custom Heterogeneous.'}), 400
+
+        if custom_tiers:
+            hw['memory_tiers'] = custom_tiers
+            hw['memory_bandwidth'] = max(t['bandwidth'] for t in custom_tiers.values())
 
         analyzer = HeteroAnalyzer(cfg, hw)
         result   = analyzer.run_full_analysis()
@@ -294,14 +299,67 @@ def hetero_analysis():
 
 @app.route('/api/hetero/hardware', methods=['GET'])
 def get_hetero_hardware():
-    """Return only heterogeneous hardware options."""
+    """Return only heterogeneous hardware options with full tier data."""
     hw_list = [
         {'key': k, 'name': v['name'], 'category': v['category'],
-         'tiers': list(v['memory_tiers'].keys())}
+         'tiers': list(v['memory_tiers'].keys()),
+         'memory_tiers': v['memory_tiers']}
         for k, v in HARDWARE_CONFIGS.items()
         if v.get('is_heterogeneous')
     ]
     return jsonify({'hardware': hw_list})
+
+
+# ─── API: Multi-Chip Parallelism (Beta) ─────────────────────────────────────
+
+@app.route('/api/parallelism/hardware', methods=['GET'])
+def get_parallel_hardware():
+    """Return multi-chip hardware options."""
+    hw_list = [
+        {'key': k, 'name': v['name'], 'category': v['category'],
+         'num_devices': v.get('num_devices', 1),
+         'inter_chip_bw_gbs': v.get('inter_chip_bw_gbs', 0),
+         'topology': v.get('inter_chip_topology', 'ring')}
+        for k, v in HARDWARE_CONFIGS.items()
+        if v.get('is_multi_chip')
+    ]
+    return jsonify({'hardware': hw_list})
+
+
+@app.route('/api/parallelism', methods=['POST'])
+def parallelism_analysis():
+    """
+    Analyze multi-chip parallelism for LLM inference (Beta).
+    Body: { config, hardware_key, tp_degree, pp_degree, dp_degree, inter_chip_bw_gbs }
+    """
+    try:
+        body   = request.get_json()
+        cfg    = body.get('config', {})
+        hw_key = body.get('hardware_key', '')
+
+        if not hw_key or hw_key not in HARDWARE_CONFIGS:
+            return jsonify({'error': f'Unknown hardware: {hw_key}'}), 400
+
+        hw = HARDWARE_CONFIGS[hw_key]
+        if not hw.get('is_multi_chip'):
+            return jsonify({'error': f'Hardware "{hw_key}" is not a multi-chip configuration.'}), 400
+
+        pcfg = ParallelismConfig(
+            num_devices=hw.get('num_devices', 1),
+            tp_degree=body.get('tp_degree', hw.get('num_devices', 1)),
+            pp_degree=body.get('pp_degree', 1),
+            dp_degree=body.get('dp_degree', 1),
+            inter_chip_bw_gbs=body.get('inter_chip_bw_gbs', hw.get('inter_chip_bw_gbs', 900)),
+            topology=body.get('topology', hw.get('inter_chip_topology', 'ring')),
+        )
+
+        analyzer = ParallelismAnalyzer(cfg, hw, pcfg)
+        result   = analyzer.run_full_analysis()
+
+        return jsonify({'success': True, 'parallelism': result})
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 
 # ─── API: Design Space Exploration ───────────────────────────────────────────

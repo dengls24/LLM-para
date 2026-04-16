@@ -475,6 +475,53 @@ HARDWARE_CONFIGS = {
         "tdp_w": 200, "cost_usd": 2000, "tech_node_nm": 7,
         "carbon_mfg_kgco2e": 50, "compute_power_frac": 0.5,
     },
+
+    # ── Custom Heterogeneous ─────────────────────────────────────────────────
+    "Custom Heterogeneous": {
+        "name": "Custom Heterogeneous", "category": "Chiplet/PIM",
+        "peak_performance": 10e12, "peak_performance_fp16": 20e12,
+        "memory_bandwidth": 4e12, "memory_capacity": 64e9,
+        "tdp_w": 50, "cost_usd": 1000, "tech_node_nm": 7,
+        "carbon_mfg_kgco2e": 40, "compute_power_frac": 0.5,
+        "is_heterogeneous": True,
+        "memory_tiers": {
+            "SRAM":  {"bandwidth": 4e12,   "capacity": 0.25e9,  "energy_per_byte_pj": 1.0,  "latency_ns": 1},
+            "DRAM":  {"bandwidth": 256e9,  "capacity": 8e9,     "energy_per_byte_pj": 3.7,  "latency_ns": 100},
+            "Flash": {"bandwidth": 8e9,    "capacity": 64e9,    "energy_per_byte_pj": 25.0, "latency_ns": 100000},
+        },
+    },
+
+    # ── Multi-Chip Clusters (Beta) ───────────────────────────────────────────
+    "8xH100 NVLink Cluster": {
+        "name": "8×H100 NVLink Cluster", "category": "Multi-GPU Cluster",
+        "peak_performance": 67e12, "peak_performance_fp16": 989e12,
+        "memory_bandwidth": 3.35e12, "memory_capacity": 80e9,
+        "tdp_w": 700, "cost_usd": 30000, "tech_node_nm": 4,
+        "carbon_mfg_kgco2e": 150, "compute_power_frac": 0.55,
+        "is_multi_chip": True, "num_devices": 8,
+        "per_device_peak": 67e12, "per_device_bw": 3.35e12, "per_device_capacity": 80e9,
+        "inter_chip_bw_gbs": 900, "inter_chip_topology": "all_to_all",
+    },
+    "4xA100 NVLink Cluster": {
+        "name": "4×A100 NVLink Cluster", "category": "Multi-GPU Cluster",
+        "peak_performance": 19.5e12, "peak_performance_fp16": 312e12,
+        "memory_bandwidth": 2.0e12, "memory_capacity": 80e9,
+        "tdp_w": 400, "cost_usd": 15000, "tech_node_nm": 7,
+        "carbon_mfg_kgco2e": 120, "compute_power_frac": 0.5,
+        "is_multi_chip": True, "num_devices": 4,
+        "per_device_peak": 19.5e12, "per_device_bw": 2.0e12, "per_device_capacity": 80e9,
+        "inter_chip_bw_gbs": 600, "inter_chip_topology": "all_to_all",
+    },
+    "2xMI300X PCIe Cluster": {
+        "name": "2×MI300X PCIe Cluster", "category": "Multi-GPU Cluster",
+        "peak_performance": 163.4e12, "peak_performance_fp16": 1307e12,
+        "memory_bandwidth": 5.3e12, "memory_capacity": 192e9,
+        "tdp_w": 750, "cost_usd": 20000, "tech_node_nm": 5,
+        "carbon_mfg_kgco2e": 160, "compute_power_frac": 0.5,
+        "is_multi_chip": True, "num_devices": 2,
+        "per_device_peak": 163.4e12, "per_device_bw": 5.3e12, "per_device_capacity": 192e9,
+        "inter_chip_bw_gbs": 64, "inter_chip_topology": "ring",
+    },
 }
 
 # ─── Category colors for frontend ─────────────────────────────────────────────
