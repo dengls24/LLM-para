@@ -199,6 +199,26 @@ MODEL_CONFIGS = {
         "quant_config": {"activation": 8, "weight_attn": 2, "weight_ffn": 2,
                          "kv_cache": 4, "rope_bit": 16},
     },
+
+    # ── Validation Models (matching RooflineBench configurations) ────────────
+    "Qwen2.5-1.5B": {
+        "hidden_size": 1536, "num_heads": 12, "num_key_value_heads": 2,
+        "num_layers": 28, "intermediate_size": 8960, "vocab_size": 151936,
+        "seq_len": 2048, "batch_size": 1, "max_gen_len": 2048,
+        "use_gate_ffn": True, "use_rmsnorm": True,
+        "rope_theta": 1000000.0, "rope_scaling_factor": 1.0,
+        "quant_config": {"activation": 16, "weight_attn": 16, "weight_ffn": 16,
+                         "kv_cache": 16, "rope_bit": 32},
+    },
+    "Llama-3.2-1B": {
+        "hidden_size": 2048, "num_heads": 32, "num_key_value_heads": 8,
+        "num_layers": 16, "intermediate_size": 8192, "vocab_size": 128256,
+        "seq_len": 2048, "batch_size": 1, "max_gen_len": 2048,
+        "use_gate_ffn": True, "use_rmsnorm": True,
+        "rope_theta": 500000.0, "rope_scaling_factor": 1.0,
+        "quant_config": {"activation": 16, "weight_attn": 16, "weight_ffn": 16,
+                         "kv_cache": 16, "rope_bit": 32},
+    },
 }
 
 # ─── Hardware Presets ─────────────────────────────────────────────────────────
@@ -521,6 +541,36 @@ HARDWARE_CONFIGS = {
         "is_multi_chip": True, "num_devices": 2,
         "per_device_peak": 163.4e12, "per_device_bw": 5.3e12, "per_device_capacity": 192e9,
         "inter_chip_bw_gbs": 64, "inter_chip_topology": "ring",
+    },
+
+    # ── Validation Hardware (measured values from RooflineBench) ─────────────
+    # Bi et al. (2026) Table 1: empirically measured BW and peak FLOPS
+    "Apple M1 Pro (RooflineBench)": {
+        "name": "Apple M1 Pro (RooflineBench)", "category": "CPU/NPU",
+        "peak_performance": 4.31e12,
+        "peak_performance_fp16": 4.61e12,
+        "memory_bandwidth": 120.03e9,
+        "memory_capacity": 16e9,
+        "tdp_w": 30, "cost_usd": 2000, "tech_node_nm": 5,
+        "carbon_mfg_kgco2e": 50, "compute_power_frac": 0.35,
+    },
+    "RTX 3070Ti Laptop (RooflineBench)": {
+        "name": "RTX 3070Ti Laptop (RooflineBench)", "category": "GPU",
+        "peak_performance": 9.51e12,
+        "peak_performance_fp16": 31.76e12,
+        "memory_bandwidth": 217.0e9,
+        "memory_capacity": 8e9,
+        "tdp_w": 125, "cost_usd": 1200, "tech_node_nm": 8,
+        "carbon_mfg_kgco2e": 60, "compute_power_frac": 0.55,
+    },
+    "Jetson Orin Nano (RooflineBench)": {
+        "name": "Jetson Orin Nano (RooflineBench)", "category": "Edge AI",
+        "peak_performance": 1.34e12,
+        "peak_performance_fp16": 9.56e12,
+        "memory_bandwidth": 59.40e9,
+        "memory_capacity": 8e9,
+        "tdp_w": 15, "cost_usd": 500, "tech_node_nm": 8,
+        "carbon_mfg_kgco2e": 20, "compute_power_frac": 0.4,
     },
 }
 

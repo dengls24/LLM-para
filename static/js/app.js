@@ -277,10 +277,20 @@ function populateExtendedSelects() {
     });
   }
 
-  // Speculative decoding: hardware select (all hardware) + draft model select
+  // Speculative decoding: hardware select + target model select + draft model select
   const specHWSel = $('specHW');
   if (specHWSel) {
     _fillHWSelect(specHWSel, groups, '— Select Hardware —', 'NVIDIA H100 SXM');
+  }
+  const specTargetSel = $('specTargetModel');
+  if (specTargetSel && state.models) {
+    specTargetSel.innerHTML = '<option value="">— Use sidebar model —</option>';
+    state.models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.name;
+      opt.textContent = m.name;
+      specTargetSel.appendChild(opt);
+    });
   }
   const draftSel = $('specDraftModel');
   if (draftSel && state.draftModels) {
@@ -2316,7 +2326,6 @@ function renderParallelShardTable(sharding, mem) {
 // ── Speculative Decoding Analysis ────────────────────────────────────────────
 
 async function runSpeculativeAnalysis() {
-  if (!state.currentConfig) { showError('Run a model analysis first (sidebar).'); return; }
   const hwKey = $('specHW')?.value;
   if (!hwKey) { showError('Select a hardware platform.'); return; }
   const draftName = $('specDraftModel')?.value;
@@ -2325,18 +2334,30 @@ async function runSpeculativeAnalysis() {
   const draftModel = state.draftModels.find(d => d.name === draftName);
   if (!draftModel) { showError('Draft model not found.'); return; }
 
+  // Determine target config: from specTargetModel selector or sidebar
+  const specTargetName = $('specTargetModel')?.value;
+  let targetCfg;
+  if (specTargetName) {
+    const targetPreset = state.models.find(m => m.name === specTargetName);
+    if (!targetPreset) { showError('Target model not found.'); return; }
+    targetCfg = targetPreset.config;
+  } else if (state.currentConfig) {
+    targetCfg = buildConfig();
+  } else {
+    showError('Select a target model or run a model analysis first (sidebar).'); return;
+  }
+
   const gamma = parseInt($('specGamma')?.value || '5');
   const alpha = parseFloat($('specAlpha')?.value || '0.80');
 
   const btn = $('runSpecBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
   try {
-    const cfg = buildConfig();
     const res = await fetch('/api/speculative', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        config: cfg,
+        config: targetCfg,
         draft_config: draftModel.config,
         hardware_key: hwKey,
         gamma, alpha,

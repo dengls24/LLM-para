@@ -75,7 +75,8 @@ class SpeculativeAnalyzer:
     def _decode_latency_s(self, summary, label='target'):
         """Estimate single-token decode latency (memory-bound approximation)."""
         # Decode is memory-bound: latency ≈ model_bytes / bandwidth
-        bw = self.hw['memory_bandwidth'] * 1e9  # GB/s → B/s
+        # hw['memory_bandwidth'] is already in B/s (e.g. 3.35e12)
+        bw = self.hw['memory_bandwidth']
         model_bytes = summary['model_size_gb'] * 1e9
         return model_bytes / bw if bw > 0 else float('inf')
 
@@ -86,8 +87,8 @@ class SpeculativeAnalyzer:
         Cost ≈ γ × compute_per_token (compute-bound if γ large enough, else memory-bound).
         For first-order: verify ≈ max(γ × decode_flops / peak, model_bytes / bw)
         """
-        bw = self.hw['memory_bandwidth'] * 1e9
-        peak = self.hw['peak_performance'] * 1e12  # TFLOPS → FLOPS
+        bw = self.hw['memory_bandwidth']
+        peak = self.hw['peak_performance']  # Already in FLOPS (e.g. 67e12)
         model_bytes = self.target_summary['model_size_gb'] * 1e9
         decode_flops = self.target_summary['decode_flops']
 

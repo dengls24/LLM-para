@@ -709,6 +709,7 @@
         <div class="parallel-config-panel">
           <h4 class="tier-config-title">Speculative Decoding Configuration</h4>
           <div class="tco-params">
+            <label>Target Model: <select id="specTargetModel" class="select-sm"></select></label>
             <label>Draft Model: <select id="specDraftModel" class="select-sm"></select></label>
             <label>Speculation Length (γ): <input type="range" id="specGamma" min="1" max="16" value="5" class="slider-sm" oninput="document.getElementById('specGammaVal').textContent=this.value"/><span id="specGammaVal" style="margin-left:6px;font-weight:600">5</span></label>
             <label>Acceptance Rate (α): <input type="range" id="specAlpha" min="0.3" max="0.99" step="0.01" value="0.80" class="slider-sm" oninput="document.getElementById('specAlphaVal').textContent=parseFloat(this.value).toFixed(2)"/><span id="specAlphaVal" style="margin-left:6px;font-weight:600">0.80</span></label>
@@ -716,7 +717,7 @@
           </div>
         </div>
         <div id="specEmpty" class="info-note" style="margin:16px 0">
-          First run a model analysis (sidebar), then select a draft model and hardware to analyze speculative decoding.
+          Select a target model, draft model, and hardware platform, then click Analyze Speculative Decoding.
         </div>
         <div id="specResults" class="hidden">
           <div class="stats-row" id="specStats">
