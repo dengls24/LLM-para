@@ -15,6 +15,7 @@ from metrics import run_full_metrics, CARBON_INTENSITY_GRID
 from hetero import HeteroAnalyzer
 from dse import DSEEngine, DSE_PRESETS
 from parallelism import ParallelismAnalyzer, ParallelismConfig
+from speculative import SpeculativeAnalyzer, DRAFT_MODEL_PRESETS
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
@@ -432,6 +433,54 @@ def run_sensitivity():
         return jsonify({'success': True, 'sensitivity': result, 'param': param})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ─── API: Speculative Decoding (WIP) ─────────────────────────────────────────
+
+@app.route('/api/speculative/draft-models', methods=['GET'])
+def get_draft_models():
+    """Return available draft model presets for speculative decoding."""
+    drafts = []
+    for name, cfg in DRAFT_MODEL_PRESETS.items():
+        drafts.append({
+            'name': name,
+            'hidden_size': cfg['hidden_size'],
+            'num_heads': cfg['num_heads'],
+            'num_layers': cfg['num_layers'],
+            'config': cfg,
+        })
+    return jsonify({'draft_models': drafts})
+
+
+@app.route('/api/speculative', methods=['POST'])
+def speculative_analysis():
+    """
+    Analyze speculative decoding performance (WIP).
+    Body: { config, draft_config, hardware_key, gamma, alpha }
+    """
+    try:
+        body = request.get_json()
+        target_cfg = body.get('config', {})
+        draft_cfg = body.get('draft_config', {})
+        hw_key = body.get('hardware_key', '')
+        gamma = body.get('gamma', 5)
+        alpha = body.get('alpha', 0.8)
+
+        if not target_cfg:
+            return jsonify({'error': 'No target model config provided'}), 400
+        if not draft_cfg:
+            return jsonify({'error': 'No draft model config provided'}), 400
+        if not hw_key or hw_key not in HARDWARE_CONFIGS:
+            return jsonify({'error': f'Unknown hardware: {hw_key}'}), 400
+
+        hw = HARDWARE_CONFIGS[hw_key]
+        analyzer = SpeculativeAnalyzer(target_cfg, draft_cfg, hw)
+        result = analyzer.run_full_analysis(gamma=gamma, alpha=alpha)
+
+        return jsonify({'success': True, 'speculative': result})
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
 
 
 if __name__ == '__main__':

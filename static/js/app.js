@@ -123,6 +123,7 @@ async function init() {
       fetch('/api/dse/presets').then(r => r.json()),
       fetch('/api/hetero/hardware').then(r => r.json()),
       fetch('/api/parallelism/hardware').then(r => r.json()),
+      fetch('/api/speculative/draft-models').then(r => r.json()),
     ]);
     state.models      = modelsRes.models;
     state.hardware    = hwRes.hardware;
@@ -131,6 +132,7 @@ async function init() {
     state.dsePresets  = dsePresetsRes.preset_params || {};
     state.heteroHW    = heteroHwRes.hardware || [];
     state.parallelHW  = parallelHwRes.hardware || [];
+    state.draftModels = draftModelsRes.draft_models || [];
 
     populateModelSelect();
     populateHardwareSelects();
@@ -274,6 +276,23 @@ function populateExtendedSelects() {
       parSel.appendChild(opt);
     });
   }
+
+  // Speculative decoding: hardware select (all hardware) + draft model select
+  const specHWSel = $('specHW');
+  if (specHWSel) {
+    _fillHWSelect(specHWSel, groups, '— Select Hardware —', 'NVIDIA H100 SXM');
+  }
+  const draftSel = $('specDraftModel');
+  if (draftSel && state.draftModels) {
+    draftSel.innerHTML = '';
+    state.draftModels.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.name;
+      opt.textContent = `${d.name} (h=${d.hidden_size}, L=${d.num_layers})`;
+      if (i === 0) opt.selected = true;
+      draftSel.appendChild(opt);
+    });
+  }
 }
 
 function renderDSEParamCards(params) {
@@ -411,6 +430,7 @@ function setupEventListeners() {
   $('runHeteroBtn') && $('runHeteroBtn').addEventListener('click', runHeteroAnalysis);
   $('runDSEBtn')    && $('runDSEBtn').addEventListener('click', runDSE);
   $('runParallelBtn') && $('runParallelBtn').addEventListener('click', runParallelAnalysis);
+  $('runSpecBtn') && $('runSpecBtn').addEventListener('click', runSpeculativeAnalysis);
   $('themeToggle') && $('themeToggle').addEventListener('click', toggleTheme);
 
   // Apply custom hardware params button
@@ -2289,6 +2309,203 @@ function renderParallelShardTable(sharding, mem) {
   for (const r of rows) {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td style="font-weight:500">${r.type}</td><td>${r.total}</td><td>${r.perDev}</td><td class="note-cell">${r.shard}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+// ── Speculative Decoding Analysis ────────────────────────────────────────────
+
+async function runSpeculativeAnalysis() {
+  if (!state.currentConfig) { showError('Run a model analysis first (sidebar).'); return; }
+  const hwKey = $('specHW')?.value;
+  if (!hwKey) { showError('Select a hardware platform.'); return; }
+  const draftName = $('specDraftModel')?.value;
+  if (!draftName) { showError('Select a draft model.'); return; }
+
+  const draftModel = state.draftModels.find(d => d.name === draftName);
+  if (!draftModel) { showError('Draft model not found.'); return; }
+
+  const gamma = parseInt($('specGamma')?.value || '5');
+  const alpha = parseFloat($('specAlpha')?.value || '0.80');
+
+  const btn = $('runSpecBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Analyzing…'; }
+  try {
+    const cfg = buildConfig();
+    const res = await fetch('/api/speculative', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        config: cfg,
+        draft_config: draftModel.config,
+        hardware_key: hwKey,
+        gamma, alpha,
+      }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Speculative analysis failed');
+
+    const s = data.speculative;
+    // Stats
+    $('sp-speedup').textContent = s.speedup.toFixed(2) + '×';
+    $('sp-tps-vanilla').textContent = s.tokens_per_sec_vanilla.toFixed(1);
+    $('sp-tps-spec').textContent = s.tokens_per_sec_speculative.toFixed(1);
+    $('sp-expected').textContent = s.expected_tokens_per_step.toFixed(2);
+    $('sp-step-lat').textContent = s.step_latency_ms.toFixed(2) + ' ms';
+    $('sp-mem-overhead').textContent = '+' + s.memory.overhead_gb.toFixed(2) + ' GB (' + s.memory.overhead_pct.toFixed(0) + '%)';
+    $('sp-energy-ratio').textContent = s.energy.energy_ratio.toFixed(2) + '×';
+
+    renderSpecSpeedupChart(s.sweep);
+    renderSpecMemChart(s.memory);
+    renderSpecEnergyChart(s.energy, s.target_summary, s.draft_summary);
+    renderSpecAcceptChart(s.sweep);
+    renderSpecCompTable(s);
+
+    $('specResults').classList.remove('hidden');
+    $('specEmpty').classList.add('hidden');
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Analyze Speculative Decoding'; }
+  }
+}
+
+function renderSpecSpeedupChart(sweep) {
+  destroyChart('specSpeedup');
+  const tc = getThemeColors();
+  const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+  const datasets = sweep.curves.map((c, i) => ({
+    label: `α = ${c.alpha}`,
+    data: c.points.map(p => ({ x: p.gamma, y: p.speedup })),
+    borderColor: colors[i % colors.length],
+    backgroundColor: colors[i % colors.length] + '22',
+    borderWidth: 2,
+    tension: 0.3,
+    fill: false,
+    pointRadius: 3,
+  }));
+  state.charts.specSpeedup = new Chart($('specSpeedupChart').getContext('2d'), {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { type: 'linear', title: { display: true, text: 'Speculation Length (γ)', color: tc.text },
+             ticks: { color: tc.text, stepSize: 1 }, grid: { color: tc.grid } },
+        y: { title: { display: true, text: 'Speedup ×', color: tc.text },
+             ticks: { color: tc.text }, grid: { color: tc.grid }, min: 0 },
+      },
+      plugins: {
+        legend: { labels: { color: tc.text } },
+        tooltip: { callbacks: { label: ctx => `α=${sweep.curves[ctx.datasetIndex].alpha}: ${ctx.parsed.y.toFixed(2)}×` } },
+      },
+    },
+  });
+}
+
+function renderSpecMemChart(mem) {
+  destroyChart('specMem');
+  const tc = getThemeColors();
+  state.charts.specMem = new Chart($('specMemChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Vanilla (Target Only)', 'Speculative (Target+Draft)'],
+      datasets: [
+        { label: 'Model Weights', data: [mem.target_model_gb, mem.target_model_gb + mem.draft_model_gb],
+          backgroundColor: ['#3b82f6', '#3b82f6'] },
+        { label: 'KV Cache', data: [mem.target_kv_gb, mem.target_kv_gb + mem.draft_kv_gb],
+          backgroundColor: ['#10b981', '#10b981'] },
+        { label: 'Draft Overhead', data: [0, mem.overhead_gb],
+          backgroundColor: ['transparent', '#ef444488'] },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, ticks: { color: tc.text }, grid: { color: tc.grid } },
+        y: { stacked: true, title: { display: true, text: 'Memory (GB)', color: tc.text },
+             ticks: { color: tc.text }, grid: { color: tc.grid } },
+      },
+      plugins: { legend: { labels: { color: tc.text } } },
+    },
+  });
+}
+
+function renderSpecEnergyChart(energy, target, draft) {
+  destroyChart('specEnergy');
+  const tc = getThemeColors();
+  const vanillaJ = energy.vanilla_j_per_token * 1000; // mJ
+  const specJ = energy.speculative_j_per_token * 1000;
+  state.charts.specEnergy = new Chart($('specEnergyChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Vanilla Decode', 'Speculative Decode'],
+      datasets: [{
+        label: 'Energy per Token (mJ)',
+        data: [vanillaJ, specJ],
+        backgroundColor: [vanillaJ <= specJ ? '#10b981' : '#ef4444', specJ <= vanillaJ ? '#10b981' : '#f59e0b'],
+        borderWidth: 1,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: 'y',
+      scales: {
+        x: { title: { display: true, text: 'Energy per Token (mJ)', color: tc.text },
+             ticks: { color: tc.text }, grid: { color: tc.grid } },
+        y: { ticks: { color: tc.text }, grid: { color: tc.grid } },
+      },
+      plugins: { legend: { display: false } },
+    },
+  });
+}
+
+function renderSpecAcceptChart(sweep) {
+  destroyChart('specAccept');
+  const tc = getThemeColors();
+  const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+  const datasets = sweep.curves.map((c, i) => ({
+    label: `α = ${c.alpha}`,
+    data: c.points.map(p => ({ x: p.gamma, y: p.expected_tokens })),
+    borderColor: colors[i % colors.length],
+    borderWidth: 2,
+    tension: 0.3,
+    fill: false,
+    pointRadius: 3,
+  }));
+  state.charts.specAccept = new Chart($('specAcceptChart').getContext('2d'), {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { type: 'linear', title: { display: true, text: 'Speculation Length (γ)', color: tc.text },
+             ticks: { color: tc.text, stepSize: 1 }, grid: { color: tc.grid } },
+        y: { title: { display: true, text: 'E[tokens/step]', color: tc.text },
+             ticks: { color: tc.text }, grid: { color: tc.grid }, min: 0 },
+      },
+      plugins: { legend: { labels: { color: tc.text } } },
+    },
+  });
+}
+
+function renderSpecCompTable(s) {
+  const tbody = $('specCompBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  const fmt = (v) => typeof v === 'number' ? (v >= 1e6 ? (v/1e9).toFixed(2)+'B' : v >= 1e3 ? (v/1e6).toFixed(2)+'M' : v.toFixed(2)) : v;
+  const rows = [
+    { m: 'Parameters', t: fmt(s.target_summary.total_params), d: fmt(s.draft_summary.total_params), sp: '—' },
+    { m: 'Model Size (GB)', t: s.target_summary.model_size_gb.toFixed(2), d: s.draft_summary.model_size_gb.toFixed(2), sp: s.memory.total_speculative_gb.toFixed(2) },
+    { m: 'Decode Latency (ms)', t: s.target_summary.decode_latency_ms.toFixed(2), d: s.draft_summary.decode_latency_ms.toFixed(2), sp: s.step_latency_ms.toFixed(2) + ' /step' },
+    { m: 'Tokens/s', t: s.tokens_per_sec_vanilla.toFixed(1), d: '—', sp: s.tokens_per_sec_speculative.toFixed(1) },
+    { m: 'Speedup', t: '1.00×', d: '—', sp: s.speedup.toFixed(2) + '×' },
+    { m: 'Energy/Token (mJ)', t: (s.energy.vanilla_j_per_token*1000).toFixed(2), d: '—', sp: (s.energy.speculative_j_per_token*1000).toFixed(2) },
+    { m: 'Memory Overhead', t: '0 GB', d: '—', sp: '+' + s.memory.overhead_gb.toFixed(2) + ' GB (' + s.memory.overhead_pct.toFixed(0) + '%)' },
+  ];
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="font-weight:500">${r.m}</td><td>${r.t}</td><td>${r.d}</td><td>${r.sp}</td>`;
     tbody.appendChild(tr);
   }
 }

@@ -178,6 +178,24 @@ Supported multi-chip configurations:
 
 Key insight: Decode-phase communication is lightweight (single-token activations), enabling near-linear TP scaling. Prefill communication scales with sequence length and can become a bottleneck at high TP degrees.
 
+### 🎯 Speculative Decoding Analysis (WIP)
+
+> **Status: Work in Progress** — This feature is under active development.
+
+The Speculative Decoding tab models the performance of **draft-then-verify** inference, where a small draft model proposes γ tokens that the target model verifies in a single batched forward pass:
+
+| Feature | Description |
+|---|---|
+| **Draft Model Selection** | Choose from preset small models (GPT-2 117M, Phi-3 3.8B, LLaMA-2 7B, etc.) |
+| **Speculation Length (γ)** | Configurable 1–16 token lookahead |
+| **Acceptance Rate (α)** | Per-token acceptance probability modeling |
+| **Speedup Analysis** | `E[tokens] = (1 − α^(γ+1)) / (1 − α)` with γ×α sweep curves |
+| **Memory Overhead** | Combined target + draft model memory vs target-only |
+| **Energy per Token** | Joules/token comparison: vanilla decode vs speculative |
+| **Latency Breakdown** | `γ × T_draft + T_verify(γ)` step latency modeling |
+
+Key insight: Speculative decoding is most effective when the draft model is ≥10× smaller than the target (low draft decode cost) and the acceptance rate α ≥ 0.7. At α=0.8, γ=5, typical speedups are 2–3× with <15% memory overhead.
+
 ## 📦 Installation
 
 ```bash
@@ -284,6 +302,7 @@ LLM-para/
 ├── hetero.py           # Heterogeneous multi-tier memory modeling
 ├── dse.py              # Multi-objective Design Space Exploration
 ├── parallelism.py      # Multi-chip parallelism & sharding analysis (WIP)
+├── speculative.py      # Speculative decoding draft-verify analysis (WIP)
 ├── cli.py              # Command-line interface
 ├── requirements.txt
 ├── README.md
@@ -314,6 +333,8 @@ LLM-para/
 | `GET` | `/api/dse/presets` | DSE sweep presets |
 | `POST` | `/api/dse/run` | Run Design Space Exploration |
 | `POST` | `/api/dse/sensitivity` | Single-parameter sensitivity analysis |
+| `GET` | `/api/speculative/draft-models` | List draft model presets |
+| `POST` | `/api/speculative` | Speculative decoding analysis (WIP) |
 
 ## 📊 Preset Model Library
 

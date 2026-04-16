@@ -307,6 +307,7 @@
         <button class="tab" data-tab="hetero">🔬 Hetero Architecture</button>
         <button class="tab" data-tab="dse">🎯 DSE Explorer</button>
         <button class="tab" data-tab="parallel">🔗 Multi-Chip Sharding <span class="beta-badge">WIP</span></button>
+        <button class="tab" data-tab="speculative">🎯 Speculative Decoding <span class="beta-badge">WIP</span></button>
       </div>
 
       <!-- Tab: Operations Table -->
@@ -690,6 +691,68 @@
                 <th>Data Type</th><th>Total Size</th><th>Per Device</th><th>Sharding</th>
               </tr></thead>
               <tbody id="parallelShardBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Speculative Decoding (WIP) -->
+      <div class="tab-panel" id="panel-speculative">
+        <div class="info-note" style="margin-bottom:16px">
+          <strong>Work in Progress:</strong> This tab models speculative decoding where a small draft model proposes γ tokens that the target model verifies in one forward pass, trading extra memory for higher throughput.
+        </div>
+        <div class="roofline-toolbar">
+          <div class="roofline-hw-select">
+            <label>Hardware: <select id="specHW" class="select-sm"></select></label>
+          </div>
+        </div>
+        <div class="parallel-config-panel">
+          <h4 class="tier-config-title">Speculative Decoding Configuration</h4>
+          <div class="tco-params">
+            <label>Draft Model: <select id="specDraftModel" class="select-sm"></select></label>
+            <label>Speculation Length (γ): <input type="range" id="specGamma" min="1" max="16" value="5" class="slider-sm" oninput="document.getElementById('specGammaVal').textContent=this.value"/><span id="specGammaVal" style="margin-left:6px;font-weight:600">5</span></label>
+            <label>Acceptance Rate (α): <input type="range" id="specAlpha" min="0.3" max="0.99" step="0.01" value="0.80" class="slider-sm" oninput="document.getElementById('specAlphaVal').textContent=parseFloat(this.value).toFixed(2)"/><span id="specAlphaVal" style="margin-left:6px;font-weight:600">0.80</span></label>
+            <button class="btn btn-sm btn-primary" id="runSpecBtn">Analyze Speculative Decoding</button>
+          </div>
+        </div>
+        <div id="specEmpty" class="info-note" style="margin:16px 0">
+          First run a model analysis (sidebar), then select a draft model and hardware to analyze speculative decoding.
+        </div>
+        <div id="specResults" class="hidden">
+          <div class="stats-row" id="specStats">
+            <div class="rstat"><span>Speedup</span><span id="sp-speedup">—</span></div>
+            <div class="rstat"><span>Tokens/s (Vanilla)</span><span id="sp-tps-vanilla">—</span></div>
+            <div class="rstat"><span>Tokens/s (Speculative)</span><span id="sp-tps-spec">—</span></div>
+            <div class="rstat"><span>E[tokens/step]</span><span id="sp-expected">—</span></div>
+            <div class="rstat"><span>Step Latency</span><span id="sp-step-lat">—</span></div>
+            <div class="rstat"><span>Memory Overhead</span><span id="sp-mem-overhead">—</span></div>
+            <div class="rstat"><span>Energy Ratio</span><span id="sp-energy-ratio">—</span></div>
+          </div>
+          <div class="charts-grid-2">
+            <div class="chart-card">
+              <div class="chart-title">Speedup vs Speculation Length (γ)</div>
+              <div class="chart-container"><canvas id="specSpeedupChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Memory Comparison</div>
+              <div class="chart-container"><canvas id="specMemChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Energy per Token</div>
+              <div class="chart-container"><canvas id="specEnergyChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Expected Tokens per Step vs γ</div>
+              <div class="chart-container"><canvas id="specAcceptChart"></canvas></div>
+            </div>
+          </div>
+          <div class="hetero-placement-table">
+            <h4>Model Comparison</h4>
+            <table class="data-table" id="specCompTable">
+              <thead><tr>
+                <th>Metric</th><th>Target Model</th><th>Draft Model</th><th>Speculative</th>
+              </tr></thead>
+              <tbody id="specCompBody"></tbody>
             </table>
           </div>
         </div>
