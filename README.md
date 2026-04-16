@@ -139,15 +139,44 @@ Beyond standard Transformer analysis, LLM-Para models every operator in the infe
 | **Intel** | Gaudi 3, Xeon Platinum 8480+ |
 | **Mobile NPU** | Snapdragon 8 Gen 3/2, Dimensity 9300 |
 | **PIM** | DRAM-PIM (HBM-PIM), NAND-PIM (HILOS), SRAM-PIM |
+| **Chiplet/Hetero** | Cambricon-LLM, Flash-LLM, NAND-PIM Near-Storage, Custom Heterogeneous |
+| **Multi-GPU Cluster** | 8×H100 NVLink, 4×A100 NVLink, 2×MI300X PCIe |
+| **Custom** | Fully user-configurable peak perf, bandwidth, capacity, TDP, cost |
 
 ### 🌐 Web Interface
 - Real-time computation with interactive parameter controls
+- **Dark / Light theme** toggle with polished styling for both modes
 - Interactive Roofline model chart (log-log scale, per operator)
 - Per-category FLOPs and memory breakdown charts
 - Arithmetic intensity scatter visualization
 - KV cache timeline analysis
 - Per-operator memory decomposition (input/weight/output)
+- **Custom hardware parameter editing** — adjust peak perf, bandwidth, capacity, TDP, cost for Custom/PIM platforms directly in the sidebar
+- **Configurable memory tiers** — edit SRAM/DRAM/Flash bandwidth, capacity, energy, latency in the Hetero Architecture tab
 - CSV and JSON export
+
+### 🔗 Multi-Chip Sharding Analysis (WIP)
+
+> **Status: Work in Progress** — This feature is under active development.
+
+The Multi-Chip Sharding tab models how LLM inference states are distributed across multiple devices:
+
+| Feature | Description |
+|---|---|
+| **Tensor Parallelism (TP)** | Split weight matrices across devices; AllReduce after attention/FFN |
+| **Pipeline Parallelism (PP)** | Split layers across pipeline stages; point-to-point activation transfer |
+| **Data Parallelism (DP)** | Replicate model, partition batch across devices |
+| **Communication Modeling** | Ring AllReduce `2(N-1)/N × msg_size`; overlap analysis |
+| **Per-Device Memory** | Weight sharding, KV cache partitioning, activation footprint per device |
+| **Scaling Curves** | Throughput vs device count with ideal baseline comparison |
+| **Efficiency Analysis** | Parallel efficiency, communication overhead percentage |
+
+Supported multi-chip configurations:
+- **8×H100 NVLink** — 900 GB/s all-to-all interconnect
+- **4×A100 NVLink** — 600 GB/s all-to-all interconnect
+- **2×MI300X PCIe** — 64 GB/s ring topology
+
+Key insight: Decode-phase communication is lightweight (single-token activations), enabling near-linear TP scaling. Prefill communication scales with sequence length and can become a bottleneck at high TP degrees.
 
 ## 📦 Installation
 
@@ -254,27 +283,13 @@ LLM-para/
 ├── metrics.py          # Energy Roofline, TCO, CO₂e analysis
 ├── hetero.py           # Heterogeneous multi-tier memory modeling
 ├── dse.py              # Multi-objective Design Space Exploration
+├── parallelism.py      # Multi-chip parallelism & sharding analysis (WIP)
 ├── cli.py              # Command-line interface
 ├── requirements.txt
 ├── README.md
-├── RESEARCH_DOC.md     # Detailed Chinese documentation (中文文档)
-├── paper_draft/        # 📄 Research Paper
-│   ├── llm_para_paper.tex    # Full LaTeX source (IEEEtran)
-│   ├── llm_para_paper.pdf    # Compiled PDF
-│   ├── generate_figures.py   # Publication figure generation
-│   ├── take_screenshots.py   # Web UI screenshot capture
-│   ├── PAPER_DRAFT.md        # Initial draft notes
-│   └── figures/              # All paper figures (PDF + PNG)
-│       ├── fig1_roofline.*
-│       ├── fig2_energy_roofline.*
-│       ├── fig3_hetero.*
-│       ├── fig4_dse_pareto.*
-│       ├── fig5_flops_breakdown.*
-│       ├── fig6_memory_quant.*
-│       └── fig7_tco_co2.*
 ├── static/
-│   ├── index.html      # Web UI
-│   ├── css/style.css   # Dark theme stylesheet
+│   ├── index.html      # Web UI (9 analysis tabs)
+│   ├── css/style.css   # Dark & light theme stylesheet
 │   └── js/app.js       # Frontend application logic
 └── docs/               # Web interface screenshots
 ```
@@ -285,11 +300,20 @@ LLM-para/
 |---|---|---|
 | `GET` | `/api/models` | List preset model configs |
 | `GET` | `/api/hardware` | List hardware platforms |
-| `POST` | `/api/analyze` | Run full analysis |
+| `POST` | `/api/analyze` | Run full analysis (supports custom HW overrides) |
 | `POST` | `/api/roofline` | Get roofline data for given HW |
 | `POST` | `/api/export/csv` | Download results as CSV |
 | `POST` | `/api/export/json` | Download results as JSON |
 | `POST` | `/api/compare` | Compare multiple model configs |
+| `POST` | `/api/metrics` | Energy Roofline, TCO, CO₂e analysis |
+| `GET` | `/api/metrics/regions` | List CO₂ grid intensity regions |
+| `POST` | `/api/hetero` | Heterogeneous memory tier analysis (supports custom tiers) |
+| `GET` | `/api/hetero/hardware` | List heterogeneous hardware options |
+| `POST` | `/api/parallelism` | Multi-chip parallelism analysis (WIP) |
+| `GET` | `/api/parallelism/hardware` | List multi-chip hardware clusters |
+| `GET` | `/api/dse/presets` | DSE sweep presets |
+| `POST` | `/api/dse/run` | Run Design Space Exploration |
+| `POST` | `/api/dse/sensitivity` | Single-parameter sensitivity analysis |
 
 ## 📊 Preset Model Library
 

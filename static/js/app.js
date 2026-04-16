@@ -311,6 +311,8 @@ function setupEventListeners() {
   // Hardware preset
   $('hardwarePreset').addEventListener('change', e => {
     const hw = state.hardware.find(h => h.key === e.target.value);
+    const isCustom = e.target.value && (e.target.value.startsWith('Custom') ||
+                     e.target.value.includes('PIM'));
     if (hw) {
       $('hw-info').classList.remove('hidden');
       $('hw-peak-fp32').textContent = fmt.perf(hw.peak_performance);
@@ -319,8 +321,21 @@ function setupEventListeners() {
       $('hw-cap').textContent = fmt.bytes(hw.memory_capacity);
       const ridge = hw.peak_performance / hw.memory_bandwidth;
       $('hw-ridge').textContent = ridge.toFixed(1) + ' FLOP/B';
+      // Show custom edit fields for Custom/PIM hardware
+      if (isCustom) {
+        $('hw-custom-params').classList.remove('hidden');
+        $('hw_custom_peak').value = (hw.peak_performance / 1e12).toFixed(2);
+        $('hw_custom_peak_fp16').value = ((hw.peak_performance_fp16 || hw.peak_performance) / 1e12).toFixed(2);
+        $('hw_custom_bw').value = (hw.memory_bandwidth / 1e9).toFixed(0);
+        $('hw_custom_cap').value = (hw.memory_capacity / 1e9).toFixed(1);
+        $('hw_custom_tdp').value = hw.tdp_w || 200;
+        $('hw_custom_cost').value = hw.cost_usd || 2000;
+      } else {
+        $('hw-custom-params').classList.add('hidden');
+      }
     } else {
       $('hw-info').classList.add('hidden');
+      $('hw-custom-params').classList.add('hidden');
     }
   });
 
@@ -397,6 +412,29 @@ function setupEventListeners() {
   $('runDSEBtn')    && $('runDSEBtn').addEventListener('click', runDSE);
   $('runParallelBtn') && $('runParallelBtn').addEventListener('click', runParallelAnalysis);
   $('themeToggle') && $('themeToggle').addEventListener('click', toggleTheme);
+
+  // Apply custom hardware params button
+  $('applyCustomHW') && $('applyCustomHW').addEventListener('click', () => {
+    const peak = parseFloat($('hw_custom_peak').value) * 1e12;
+    const peakFp16 = parseFloat($('hw_custom_peak_fp16').value) * 1e12;
+    const bw = parseFloat($('hw_custom_bw').value) * 1e9;
+    const cap = parseFloat($('hw_custom_cap').value) * 1e9;
+    // Update display
+    $('hw-peak-fp32').textContent = fmt.perf(peak);
+    $('hw-peak-fp16').textContent = fmt.perf(peakFp16);
+    $('hw-bw').textContent = fmt.bw(bw);
+    $('hw-cap').textContent = fmt.bytes(cap);
+    $('hw-ridge').textContent = (peak / bw).toFixed(1) + ' FLOP/B';
+    // Store custom overrides in state
+    state.customHW = {
+      peak_performance: peak,
+      peak_performance_fp16: peakFp16,
+      memory_bandwidth: bw,
+      memory_capacity: cap,
+      tdp_w: parseFloat($('hw_custom_tdp').value) || 200,
+      cost_usd: parseFloat($('hw_custom_cost').value) || 2000,
+    };
+  });
 
   // Parallel hardware select: update form defaults
   if ($('parallelHW')) {
@@ -540,6 +578,11 @@ function buildConfig() {
 
   // Add hardware key
   cfg.hardware_key = $('hardwarePreset').value || $('rooflineHW').value || '';
+
+  // Include custom hardware overrides if set
+  if (state.customHW && (cfg.hardware_key.startsWith('Custom') || cfg.hardware_key.includes('PIM'))) {
+    cfg.custom_hardware = state.customHW;
+  }
 
   return cfg;
 }

@@ -209,6 +209,18 @@
             <div class="hw-stat"><span>Mem Capacity</span><span id="hw-cap">—</span></div>
             <div class="hw-stat"><span>Ridge Point</span><span id="hw-ridge">—</span></div>
           </div>
+          <!-- Custom Hardware Editable Parameters -->
+          <div id="hw-custom-params" class="sub-params hidden" style="margin-top:10px">
+            <div class="form-grid">
+              <label>Peak FP32 (TFLOPS) <input type="number" id="hw_custom_peak" value="10" min="0.01" step="0.1"/></label>
+              <label>Peak FP16 (TFLOPS) <input type="number" id="hw_custom_peak_fp16" value="20" min="0.01" step="0.1"/></label>
+              <label>Mem BW (GB/s) <input type="number" id="hw_custom_bw" value="1000" min="1" step="10"/></label>
+              <label>Mem Capacity (GB) <input type="number" id="hw_custom_cap" value="32" min="0.1" step="0.5"/></label>
+              <label>TDP (W) <input type="number" id="hw_custom_tdp" value="200" min="1" step="10"/></label>
+              <label>Cost (USD) <input type="number" id="hw_custom_cost" value="2000" min="1" step="100"/></label>
+            </div>
+            <button class="btn btn-sm btn-ghost" id="applyCustomHW" style="margin-top:8px;width:100%">Apply Custom Parameters</button>
+          </div>
         </div>
       </section>
 

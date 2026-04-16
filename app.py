@@ -103,7 +103,17 @@ def analyze():
         roofline_data = None
         hw_key = cfg.get('hardware_key')
         if hw_key and hw_key in HARDWARE_CONFIGS:
-            roofline_data = analyzer.get_roofline_data(results, HARDWARE_CONFIGS[hw_key])
+            hw = dict(HARDWARE_CONFIGS[hw_key])  # copy
+            # Apply custom hardware overrides from frontend
+            custom_hw = cfg.get('custom_hardware')
+            if custom_hw:
+                hw['peak_performance'] = custom_hw.get('peak_performance', hw['peak_performance'])
+                hw['peak_performance_fp16'] = custom_hw.get('peak_performance_fp16', hw.get('peak_performance_fp16', hw['peak_performance']))
+                hw['memory_bandwidth'] = custom_hw.get('memory_bandwidth', hw['memory_bandwidth'])
+                hw['memory_capacity'] = custom_hw.get('memory_capacity', hw.get('memory_capacity', 0))
+                hw['tdp_w'] = custom_hw.get('tdp_w', hw.get('tdp_w', 200))
+                hw['cost_usd'] = custom_hw.get('cost_usd', hw.get('cost_usd', 2000))
+            roofline_data = analyzer.get_roofline_data(results, hw)
 
         # Serialize results (convert floats for JSON)
         def safe(v):
