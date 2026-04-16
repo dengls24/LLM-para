@@ -115,7 +115,7 @@ function refreshChartColors() {
 async function init() {
   initTheme();
   try {
-    const [modelsRes, hwRes, constRes, regionsRes, dsePresetsRes, heteroHwRes, parallelHwRes] = await Promise.all([
+    const [modelsRes, hwRes, constRes, regionsRes, dsePresetsRes, heteroHwRes, parallelHwRes, draftModelsRes] = await Promise.all([
       fetch('/api/models').then(r => r.json()),
       fetch('/api/hardware').then(r => r.json()),
       fetch('/api/constants').then(r => r.json()),
